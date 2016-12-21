@@ -1,0 +1,3282 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/bin/mysqld_safe\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/galera.cnf\"\
+      ,\n            \"dest\": \"/etc//my.cnf\",\n            \"owner\": \"mysql\"\
+      ,\n            \"perm\": \"0600\"\n        },\n        {\n            \"source\"\
+      : \"/var/lib/kolla/config_files/wsrep-notify.sh\",\n            \"dest\": \"\
+      /usr/local/bin/wsrep-notify.sh\",\n            \"owner\": \"mysql\",\n     \
+      \       \"perm\": \"0700\"\n        }\n    ],\n    \"permissions\": [\n    \
+      \    {\n            \"path\": \"/var/log/kolla/mariadb\",\n            \"owner\"\
+      : \"mysql:mysql\",\n            \"recurse\": true\n        },\n        {\n \
+      \           \"path\": \"/var/lib/mysql\",\n            \"owner\": \"mysql:mysql\"\
+      ,\n            \"recurse\": true\n        }\n    ]\n}\n", galera.cnf: '[client]
+
+      default-character-set = utf8
+
+
+      [mysql]
+
+      default-character-set = utf8
+
+
+      [mysqld]
+
+      bind-address = 0.0.0.0
+
+      port = 3306
+
+      log-error = /var/log/kolla/mariadb/mariadb.log
+
+      binlog_format = ROW
+
+      default-storage-engine = innodb
+
+      innodb_autoinc_lock_mode = 2
+
+      collation-server = utf8_unicode_ci
+
+      init-connect = ''SET NAMES utf8''
+
+      character-set-server = utf8
+
+      datadir = /var/lib/mysql/
+
+      wsrep_cluster_address = gcomm://
+
+      wsrep_provider_options = gmcast.listen_addr=tcp://0.0.0.0:4567;ist.recv_addr=0.0.0.0:4568
+
+      wsrep_node_address = 0.0.0.0:4567
+
+      wsrep_sst_receive_address = 0.0.0.0:4444
+
+      wsrep_provider = none
+
+      wsrep_cluster_name = "openstack"
+
+      wsrep_node_name = dev
+
+      wsrep_sst_method = xtrabackup-v2
+
+      wsrep_sst_auth = root:AfV44NKm0DF2MKqrSAkLi0FvrOjpQSrQ7140hCPv
+
+      wsrep_slave_threads = 4
+
+      wsrep_notify_cmd = /usr/local/bin/wsrep-notify.sh
+
+      max_connections = 10000
+
+      key_buffer_size = ''64M''
+
+      max_heap_table_size = ''64M''
+
+      tmp_table_size = ''64M''
+
+      innodb_buffer_pool_size = ''8192M''
+
+
+      [server]
+
+      pid-file = /var/lib/mysql/mariadb.pid
+
+
+      ', wsrep-notify.sh: "#!/bin/bash -e\n\n# Edit parameters below to specify the\
+      \ address and login to server.\nUSER=root\nPSWD=AfV44NKm0DF2MKqrSAkLi0FvrOjpQSrQ7140hCPv\n\
+      HOST=0.0.0.0\nPORT=3306\nLB_USER=haproxy\n\nENABLE_LB=\"UPDATE mysql.user SET\
+      \ User='${LB_USER}' WHERE User='${LB_USER}_blocked';\"\nDISABLE_LB=\"UPDATE\
+      \ mysql.user SET User='${LB_USER}_blocked' WHERE User='${LB_USER}';\"\nMYSQL_CMD=\"\
+      `type -p mysql` -B -u$USER -p$PSWD -h$HOST -P$PORT\"\n\nstatus_update()\n{\n\
+      \    echo \"SET SESSION wsrep_on=off;\"\n    echo \"$@\"\n    echo \"FLUSH PRIVILEGES;\"\
+      \n}\n\nget_sst_method()\n{\n    $MYSQL_CMD -s -N -e \"SHOW VARIABLES LIKE 'wsrep_sst_method';\"\
+      \ | awk '{ print $2 }'\n}\n\nwhile [ $# -gt 0 ]\ndo\n    case $1 in\n    --status)\n\
+      \        STATUS=$2\n        shift\n        ;;\n    --uuid)\n        CLUSTER_UUID=$2\n\
+      \        shift\n        ;;\n    --primary)\n        [ \"$2\" = \"yes\" ] &&\
+      \ PRIMARY=\"1\" || PRIMARY=\"0\"\n        shift\n        ;;\n    --index)\n\
+      \        INDEX=$2\n        shift\n        ;;\n    --members)\n        MEMBERS=$2\n\
+      \        shift\n        ;;\n    esac\n    shift\ndone\n\ncase $STATUS in\nSynced)\n\
+      \    CMD=$ENABLE_LB\n    ;;\nDonor)\n    # enabling donor only if xtrabackup\
+      \ configured\n    SST_METHOD=`get_sst_method`\n    [[ $SST_METHOD =~ 'xtrabackup'\
+      \ ]] && CMD=$ENABLE_LB || CMD=$DISABLE_LB\n    ;;\nUndefined)\n    # shutting\
+      \ down database: do nothing\n    ;;\n*)\n    CMD=$DISABLE_LB\n    ;;\nesac\n\
+      \nif [ -n \"$CMD\" ]\nthen\n    status_update \"$CMD\" | $MYSQL_CMD\nfi\n\n\
+      exit 0\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: mariadb, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/httpd\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/keystone.conf\"\
+      ,\n            \"dest\": \"/etc/keystone/keystone.conf\",\n            \"owner\"\
+      : \"keystone\",\n            \"perm\": \"0600\"\n        },\n        {\n   \
+      \         \"source\": \"/var/lib/kolla/config_files/keystone-paste.ini\",\n\
+      \            \"dest\": \"/etc/keystone/keystone-paste.ini\",\n            \"\
+      owner\": \"keystone\",\n            \"perm\": \"0600\"\n        },\n       \
+      \ {\n            \"source\": \"/var/lib/kolla/config_files/domains\",\n    \
+      \        \"dest\": \"/etc/keystone/domains\",\n            \"owner\": \"keystone\"\
+      ,\n            \"perm\": \"0700\",\n            \"optional\": true\n       \
+      \ },\n        {\n            \"source\": \"/var/lib/kolla/config_files/policy.json\"\
+      ,\n            \"dest\": \"/etc/keystone/policy.json\",\n            \"owner\"\
+      : \"keystone\",\n            \"perm\": \"0600\",\n            \"optional\":\
+      \ true\n        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/wsgi-keystone.conf\"\
+      ,\n            \"dest\": \"/etc/httpd/conf.d/wsgi-keystone.conf\",\n       \
+      \     \"owner\": \"keystone\",\n            \"perm\": \"0644\"\n        }\n\
+      \    ],\n    \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla\"\
+      ,\n            \"owner\": \"keystone:kolla\"\n        },\n        {\n      \
+      \      \"path\": \"/var/log/kolla/keystone/keystone.log\",\n            \"owner\"\
+      : \"keystone:keystone\"\n        }\n    ]\n}\n", keystone-paste.ini: '[filter:debug]
+
+      use = egg:oslo.middleware#debug
+
+
+      [filter:request_id]
+
+      use = egg:oslo.middleware#request_id
+
+
+      [filter:build_auth_context]
+
+      use = egg:keystone#build_auth_context
+
+
+      [filter:token_auth]
+
+      use = egg:keystone#token_auth
+
+
+      [filter:json_body]
+
+      use = egg:keystone#json_body
+
+
+      [filter:cors]
+
+      use = egg:oslo.middleware#cors
+
+      oslo_config_project = keystone
+
+
+      [filter:ec2_extension]
+
+      use = egg:keystone#ec2_extension
+
+
+      [filter:ec2_extension_v3]
+
+      use = egg:keystone#ec2_extension_v3
+
+
+      [filter:s3_extension]
+
+      use = egg:keystone#s3_extension
+
+
+      [filter:url_normalize]
+
+      use = egg:keystone#url_normalize
+
+
+      [filter:sizelimit]
+
+      use = egg:oslo.middleware#sizelimit
+
+
+      [app:public_service]
+
+      use = egg:keystone#public_service
+
+
+      [app:service_v3]
+
+      use = egg:keystone#service_v3
+
+
+      [app:admin_service]
+
+      use = egg:keystone#admin_service
+
+
+      [pipeline:public_api]
+
+      pipeline = cors sizelimit url_normalize request_id build_auth_context token_auth
+      json_body ec2_extension public_service
+
+
+      [pipeline:admin_api]
+
+      pipeline = cors sizelimit url_normalize request_id build_auth_context token_auth
+      json_body ec2_extension s3_extension admin_service
+
+
+      [pipeline:api_v3]
+
+      pipeline = cors sizelimit url_normalize request_id build_auth_context token_auth
+      json_body ec2_extension_v3 s3_extension service_v3
+
+
+      [app:public_version_service]
+
+      use = egg:keystone#public_version_service
+
+
+      [app:admin_version_service]
+
+      use = egg:keystone#admin_version_service
+
+
+      [pipeline:public_version_api]
+
+      pipeline = cors sizelimit url_normalize public_version_service
+
+
+      [pipeline:admin_version_api]
+
+      pipeline = cors sizelimit url_normalize admin_version_service
+
+
+      [composite:main]
+
+      use = egg:Paste#urlmap
+
+      /v2.0 = public_api
+
+      /v3 = api_v3
+
+      / = public_version_api
+
+
+      [composite:admin]
+
+      use = egg:Paste#urlmap
+
+      /v2.0 = admin_api
+
+      /v3 = api_v3
+
+      / = admin_version_api
+
+
+      ', keystone.conf: '[DEFAULT]
+
+      debug = True
+
+      log_file = /var/log/kolla/keystone/keystone.log
+
+      secure_proxy_ssl_header = HTTP_X_FORWARDED_PROTO
+
+
+      [database]
+
+      connection = mysql+pymysql://keystone:TH7cLXR1Xuu1tfHM2yMSyqkbBqshJgVwR6j5Tj9V@mariadb/keystone
+
+      max_retries = -1
+
+
+      [token]
+
+      provider = uuid
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = False
+
+      memcache_servers = memcached
+
+
+      ', wsgi-keystone.conf: "Listen 0.0.0.0:5000\nListen 0.0.0.0:35357\n\n<VirtualHost\
+      \ *:5000>\n    WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone\
+      \ group=keystone display-name=%{GROUP} python-path=/usr/lib/python2.7/site-packages\n\
+      \    WSGIProcessGroup keystone-public\n    WSGIScriptAlias / /var/www/cgi-bin/keystone/main\n\
+      \    WSGIApplicationGroup %{GLOBAL}\n    WSGIPassAuthorization On\n    <IfVersion\
+      \ >= 2.4>\n      ErrorLogFormat \"%{cu}t %M\"\n    </IfVersion>\n    ErrorLog\
+      \ \"/var/log/kolla/keystone/keystone-apache-public-error.log\"\n    LogFormat\
+      \ \"%{X-Forwarded-For}i %l %u %t \\\"%r\\\" %>s %b %D \\\"%{Referer}i\\\" \\\
+      \"%{User-Agent}i\\\"\" logformat\n    CustomLog \"/var/log/kolla/keystone/keystone-apache-public-access.log\"\
+      \ logformat\n</VirtualHost>\n\n<VirtualHost *:35357>\n    WSGIDaemonProcess\
+      \ keystone-admin processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}\
+      \ python-path=/usr/lib/python2.7/site-packages\n    WSGIProcessGroup keystone-admin\n\
+      \    WSGIScriptAlias / /var/www/cgi-bin/keystone/admin\n    WSGIApplicationGroup\
+      \ %{GLOBAL}\n    WSGIPassAuthorization On\n    <IfVersion >= 2.4>\n      ErrorLogFormat\
+      \ \"%{cu}t %M\"\n    </IfVersion>\n    ErrorLog \"/var/log/kolla/keystone/keystone-apache-admin-error.log\"\
+      \n    LogFormat \"%{X-Forwarded-For}i %l %u %t \\\"%r\\\" %>s %b %D \\\"%{Referer}i\\\
+      \" \\\"%{User-Agent}i\\\"\" logformat\n    CustomLog \"/var/log/kolla/keystone/keystone-apache-admin-access.log\"\
+      \ logformat\n</VirtualHost>\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: keystone, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "\n{\n    \"command\": \"/usr/sbin/httpd -DFOREGROUND\",\n \
+      \   \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/horizon.conf\"\
+      ,\n            \"dest\": \"/etc/httpd/conf.d/horizon.conf\",\n            \"\
+      owner\": \"horizon\",\n            \"perm\": \"0644\"\n        },\n        {\n\
+      \            \"source\": \"/var/lib/kolla/config_files/horizon/cinder_policy.json\"\
+      ,\n            \"dest\": \"/etc/openstack-dashboard/cinder_policy.json\",\n\
+      \            \"owner\": \"horizon\",\n            \"perm\": \"0600\",\n    \
+      \        \"optional\": true\n        },\n        {\n            \"source\":\
+      \ \"/var/lib/kolla/config_files/horizon/glance_policy.json\",\n            \"\
+      dest\": \"/etc/openstack-dashboard/glance_policy.json\",\n            \"owner\"\
+      : \"horizon\",\n            \"perm\": \"0600\",\n            \"optional\": true\n\
+      \        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/horizon/heat_policy.json\"\
+      ,\n            \"dest\": \"/etc/openstack-dashboard/heat_policy.json\",\n  \
+      \          \"owner\": \"horizon\",\n            \"perm\": \"0600\",\n      \
+      \      \"optional\": true\n        },\n        {\n            \"source\": \"\
+      /var/lib/kolla/config_files/horizon/keystone_policy.json\",\n            \"\
+      dest\": \"/etc/openstack-dashboard/keystone_policy.json\",\n            \"owner\"\
+      : \"horizon\",\n            \"perm\": \"0600\",\n            \"optional\": true\n\
+      \        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/horizon/neutron_policy.json\"\
+      ,\n            \"dest\": \"/etc/openstack-dashboard/neutron_policy.json\",\n\
+      \            \"owner\": \"horizon\",\n            \"perm\": \"0600\",\n    \
+      \        \"optional\": true\n        },\n        {\n            \"source\":\
+      \ \"/var/lib/kolla/config_files/horizon/nova_policy.json\",\n            \"\
+      dest\": \"/etc/openstack-dashboard/nova_policy.json\",\n            \"owner\"\
+      : \"horizon\",\n            \"perm\": \"0600\",\n            \"optional\": true\n\
+      \        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/local_settings\"\
+      ,\n            \"dest\": \"/etc/openstack-dashboard/local_settings\",\n    \
+      \        \"owner\": \"horizon\",\n            \"perm\": \"0644\"\n        }\n\
+      \    ]\n}\n", horizon.conf: "Listen 0.0.0.0:80\n\n<VirtualHost *:80>\n    LogLevel\
+      \ warn\n    ErrorLog /var/log/kolla/horizon/horizon.log\n    CustomLog /var/log/kolla/horizon/horizon-access.log\
+      \ combined\n\n    WSGIScriptReloading On\n    WSGIDaemonProcess horizon-http\
+      \ processes=5 threads=1 user=horizon group=horizon display-name=%{GROUP} python-path=/usr/lib/python2.7/site-packages\n\
+      \    WSGIProcessGroup horizon-http\n    WSGIScriptAlias / /usr/lib/python2.7/site-packages/openstack_dashboard/wsgi/django.wsgi\n\
+      \    WSGIPassAuthorization On\n\n    <Location \"/\">\n        Require all granted\n\
+      \    </Location>\n\n    Alias /static /usr/lib/python2.7/site-packages/static\n\
+      \    <Location \"/static\">\n        SetHandler None\n    </Location>\n</VirtualHost>\n\
+      \n# NOTE(Jeffrey4l): Only enable deflate when tls is disabled until the\n# OSSN-0037\
+      \ is fixed.\n# see https://wiki.openstack.org/wiki/OSSN/OSSN-0037 for more information.\n\
+      <IfModule mod_deflate.c>\n    # Compress HTML, CSS, JavaScript, Text, XML and\
+      \ fonts\n    AddOutputFilterByType DEFLATE application/javascript\n    AddOutputFilterByType\
+      \ DEFLATE application/rss+xml\n    AddOutputFilterByType DEFLATE application/vnd.ms-fontobject\n\
+      \    AddOutputFilterByType DEFLATE application/x-font\n    AddOutputFilterByType\
+      \ DEFLATE application/x-font-opentype\n    AddOutputFilterByType DEFLATE application/x-font-otf\n\
+      \    AddOutputFilterByType DEFLATE application/x-font-truetype\n    AddOutputFilterByType\
+      \ DEFLATE application/x-font-ttf\n    AddOutputFilterByType DEFLATE application/x-javascript\n\
+      \    AddOutputFilterByType DEFLATE application/xhtml+xml\n    AddOutputFilterByType\
+      \ DEFLATE application/xml\n    AddOutputFilterByType DEFLATE font/opentype\n\
+      \    AddOutputFilterByType DEFLATE font/otf\n    AddOutputFilterByType DEFLATE\
+      \ font/ttf\n    AddOutputFilterByType DEFLATE image/svg+xml\n    AddOutputFilterByType\
+      \ DEFLATE image/x-icon\n    AddOutputFilterByType DEFLATE text/css\n    AddOutputFilterByType\
+      \ DEFLATE text/html\n    AddOutputFilterByType DEFLATE text/javascript\n   \
+      \ AddOutputFilterByType DEFLATE text/plain\n    AddOutputFilterByType DEFLATE\
+      \ text/xml\n</IfModule>\n\n<IfModule mod_expires.c>\n    <Filesmatch \"\\.(jpg|jpeg|png|gif|js|css|swf|ico|woff)$\"\
+      >\n        ExpiresActive on\n        ExpiresDefault \"access plus 1 month\"\n\
+      \        ExpiresByType application/javascript \"access plus 1 year\"\n     \
+      \   ExpiresByType text/css \"access plus 1 year\"\n        ExpiresByType image/x-ico\
+      \ \"access plus 1 year\"\n        ExpiresByType image/jpg \"access plus 1 year\"\
+      \n        ExpiresByType image/jpeg \"access plus 1 year\"\n        ExpiresByType\
+      \ image/gif \"access plus 1 year\"\n        ExpiresByType image/png \"access\
+      \ plus 1 year\"\n        Header merge Cache-Control public\n        Header unset\
+      \ ETag\n    </Filesmatch>\n</IfModule>\n", local-settings: "# -*- coding: utf-8\
+      \ -*-\n\nimport os\n\nfrom django.utils.translation import ugettext_lazy as\
+      \ _\n\nfrom openstack_dashboard import exceptions\nfrom openstack_dashboard.settings\
+      \ import HORIZON_CONFIG\n\nDEBUG = True\nTEMPLATE_DEBUG = DEBUG\n\nCOMPRESS_OFFLINE\
+      \ = True\n\n# WEBROOT is the location relative to Webserver root\n# should end\
+      \ with a slash.\nWEBROOT = '/'\n#LOGIN_URL = WEBROOT + 'auth/login/'\n#LOGOUT_URL\
+      \ = WEBROOT + 'auth/logout/'\n#\n# LOGIN_REDIRECT_URL can be used as an alternative\
+      \ for\n# HORIZON_CONFIG.user_home, if user_home is not set.\n# Do not set it\
+      \ to '/home/', as this will cause circular redirect loop\n#LOGIN_REDIRECT_URL\
+      \ = WEBROOT\n\n# If horizon is running in production (DEBUG is False), set this\n\
+      # with the list of host/domain names that the application can serve.\n# For\
+      \ more information see:\n# https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts\n\
+      ALLOWED_HOSTS = ['*']\n\n\n# Set SSL proxy settings:\n# Pass this header from\
+      \ the proxy after terminating the SSL,\n# and don't forget to strip it from\
+      \ the client's request.\n# For more information see:\n# https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header\n\
+      #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')\n\n# If Horizon\
+      \ is being served through SSL, then uncomment the following two\n# settings\
+      \ to better secure the cookies from security exploits\n#CSRF_COOKIE_SECURE =\
+      \ True\n#SESSION_COOKIE_SECURE = True\n\n\n# The absolute path to the directory\
+      \ where message files are collected.\n# The message file must have a .json file\
+      \ extension. When the user logins to\n# horizon, the message files collected\
+      \ are processed and displayed to the user.\n#MESSAGES_PATH=None\n\n# Overrides\
+      \ for OpenStack API versions. Use this setting to force the\n# OpenStack dashboard\
+      \ to use a specific API version for a given service API.\n# Versions specified\
+      \ here should be integers or floats, not strings.\n# NOTE: The version should\
+      \ be formatted as it appears in the URL for the\n# service API. For example,\
+      \ The identity service APIs have inconsistent\n# use of the decimal point, so\
+      \ valid options would be 2.0 or 3.\n# Minimum compute version to get the instance\
+      \ locked status is 2.9.\n#OPENSTACK_API_VERSIONS = {\n#    \"data-processing\"\
+      : 1.1,\n#    \"identity\": 3,\n#    \"volume\": 2,\n#    \"compute\": 2,\n#}\n\
+      \nOPENSTACK_API_VERSIONS = {\n    \"identity\": 3,\n}\n\n# Set this to True\
+      \ if running on a multi-domain model. When this is enabled, it\n# will require\
+      \ the user to enter the Domain name in addition to the username\n# for login.\n\
+      #OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = False\n\n# Overrides the default domain\
+      \ used when running on single-domain model\n# with Keystone V3. All entities\
+      \ will be created in the default domain.\n# NOTE: This value must be the ID\
+      \ of the default domain, NOT the name.\n# Also, you will most likely have a\
+      \ value in the keystone policy file like this\n#    \"cloud_admin\": \"rule:admin_required\
+      \ and domain_id:<your domain id>\"\n# This value must match the domain id specified\
+      \ there.\n#OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = 'default'\n\n# Set this to True\
+      \ to enable panels that provide the ability for users to\n# manage Identity\
+      \ Providers (IdPs) and establish a set of rules to map\n# federation protocol\
+      \ attributes to Identity API attributes.\n# This extension requires v3.0+ of\
+      \ the Identity API.\n#OPENSTACK_KEYSTONE_FEDERATION_MANAGEMENT = False\n\n#\
+      \ Set Console type:\n# valid options are \"AUTO\"(default), \"VNC\", \"SPICE\"\
+      , \"RDP\", \"SERIAL\" or None\n# Set to None explicitly if you want to deactivate\
+      \ the console.\n#CONSOLE_TYPE = \"AUTO\"\n\n# If provided, a \"Report Bug\"\
+      \ link will be displayed in the site header\n# which links to the value of this\
+      \ setting (ideally a URL containing\n# information on how to report issues).\n\
+      #HORIZON_CONFIG[\"bug_url\"] = \"http://bug-report.example.com\"\n\n# Show backdrop\
+      \ element outside the modal, do not close the modal\n# after clicking on backdrop.\n\
+      #HORIZON_CONFIG[\"modal_backdrop\"] = \"static\"\n\n# Specify a regular expression\
+      \ to validate user passwords.\n#HORIZON_CONFIG[\"password_validator\"] = {\n\
+      #    \"regex\": '.*',\n#    \"help_text\": _(\"Your password does not meet the\
+      \ requirements.\"),\n#}\n\n# Disable simplified floating IP address management\
+      \ for deployments with\n# multiple floating IP pools or complex network requirements.\n\
+      #HORIZON_CONFIG[\"simple_ip_management\"] = False\n\n# Turn off browser autocompletion\
+      \ for forms including the login form and\n# the database creation workflow if\
+      \ so desired.\n#HORIZON_CONFIG[\"password_autocomplete\"] = \"off\"\n\n# Setting\
+      \ this to True will disable the reveal button for password fields,\n# including\
+      \ on the login form.\n#HORIZON_CONFIG[\"disable_password_reveal\"] = False\n\
+      \nLOCAL_PATH = '/tmp'\n\n# Set custom secret key:\n# You can either set it to\
+      \ a specific value or you can let horizon generate a\n# default secret key that\
+      \ is unique on this machine, e.i. regardless of the\n# amount of Python WSGI\
+      \ workers (if used behind Apache+mod_wsgi): However,\n# there may be situations\
+      \ where you would want to set this explicitly, e.g.\n# when multiple dashboard\
+      \ instances are distributed on different machines\n# (usually behind a load-balancer).\
+      \ Either you have to make sure that a session\n# gets all requests routed to\
+      \ the same dashboard instance or you set the same\n# SECRET_KEY for all of them.\n\
+      SECRET_KEY='CAQRsEztxSch1d34RaIqGs1cB5PRSVELGimT4AVq'\n\n# We recommend you\
+      \ use memcached for development; otherwise after every reload\n# of the django\
+      \ development server, you will have to login again. To use\n# memcached set\
+      \ CACHES to something like\n#CACHES = {\n#    'default': {\n#        'BACKEND':\
+      \ 'django.core.cache.backends.memcached.MemcachedCache',\n#        'LOCATION':\
+      \ '127.0.0.1:11211',\n#    },\n#}\n\nSESSION_ENGINE = 'django.contrib.sessions.backends.cache'\n\
+      CACHES = {\n    'default': {\n        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',\n\
+      \n        'LOCATION': 'memcached'\n    }\n}\n\n# Send email to the console by\
+      \ default\nEMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'\n\
+      # Or send them to /dev/null\n#EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'\n\
+      \n# Configure these for your outgoing email host\n#EMAIL_HOST = 'smtp.my-company.com'\n\
+      #EMAIL_PORT = 25\n#EMAIL_HOST_USER = 'djangomail'\n#EMAIL_HOST_PASSWORD = 'top-secret!'\n\
+      \n# For multiple regions uncomment this configuration, and add (endpoint, title).\n\
+      #AVAILABLE_REGIONS = [\n#    ('http://cluster1.example.com:5000/v2.0', 'cluster1'),\n\
+      #    ('http://cluster2.example.com:5000/v2.0', 'cluster2'),\n#]\n\nOPENSTACK_HOST\
+      \ = \"0.0.0.0\"\n\nOPENSTACK_KEYSTONE_URL = \"http://keystone-public:5000/v3\"\
+      \nOPENSTACK_KEYSTONE_DEFAULT_ROLE = \"_member_\"\n\n# Enables keystone web single-sign-on\
+      \ if set to True.\n#WEBSSO_ENABLED = False\n\n# Determines which authentication\
+      \ choice to show as default.\n#WEBSSO_INITIAL_CHOICE = \"credentials\"\n\n#\
+      \ The list of authentication mechanisms which include keystone\n# federation\
+      \ protocols and identity provider/federation protocol\n# mapping keys (WEBSSO_IDP_MAPPING).\
+      \ Current supported protocol\n# IDs are 'saml2' and 'oidc'  which represent\
+      \ SAML 2.0, OpenID\n# Connect respectively.\n# Do not remove the mandatory credentials\
+      \ mechanism.\n# Note: The last two tuples are sample mapping keys to a identity\
+      \ provider\n# and federation protocol combination (WEBSSO_IDP_MAPPING).\n#WEBSSO_CHOICES\
+      \ = (\n#    (\"credentials\", _(\"Keystone Credentials\")),\n#    (\"oidc\"\
+      , _(\"OpenID Connect\")),\n#    (\"saml2\", _(\"Security Assertion Markup Language\"\
+      )),\n#    (\"acme_oidc\", \"ACME - OpenID Connect\"),\n#    (\"acme_saml2\"\
+      , \"ACME - SAML2\"),\n#)\n\n# A dictionary of specific identity provider and\
+      \ federation protocol\n# combinations. From the selected authentication mechanism,\
+      \ the value\n# will be looked up as keys in the dictionary. If a match is found,\n\
+      # it will redirect the user to a identity provider and federation protocol\n\
+      # specific WebSSO endpoint in keystone, otherwise it will use the value\n# as\
+      \ the protocol_id when redirecting to the WebSSO by protocol endpoint.\n# NOTE:\
+      \ The value is expected to be a tuple formatted as: (<idp_id>, <protocol_id>).\n\
+      #WEBSSO_IDP_MAPPING = {\n#    \"acme_oidc\": (\"acme\", \"oidc\"),\n#    \"\
+      acme_saml2\": (\"acme\", \"saml2\"),\n#}\n\n# Disable SSL certificate checks\
+      \ (useful for self-signed certificates):\n#OPENSTACK_SSL_NO_VERIFY = True\n\n\
+      # The CA certificate to use to verify SSL connections\n#OPENSTACK_SSL_CACERT\
+      \ = '/path/to/cacert.pem'\n\n# The OPENSTACK_KEYSTONE_BACKEND settings can be\
+      \ used to identify the\n# capabilities of the auth backend for Keystone.\n#\
+      \ If Keystone has been configured to use LDAP as the auth backend then set\n\
+      # can_edit_user to False and name to 'ldap'.\n#\n# TODO(tres): Remove these\
+      \ once Keystone has an API to identify auth backend.\nOPENSTACK_KEYSTONE_BACKEND\
+      \ = {\n    'name': 'native',\n    'can_edit_user': True,\n    'can_edit_group':\
+      \ True,\n    'can_edit_project': True,\n    'can_edit_domain': True,\n    'can_edit_role':\
+      \ True,\n}\n\n# Setting this to True, will add a new \"Retrieve Password\" action\
+      \ on instance,\n# allowing Admin session password retrieval/decryption.\n#OPENSTACK_ENABLE_PASSWORD_RETRIEVE\
+      \ = False\n\n# The Launch Instance user experience has been significantly enhanced.\n\
+      # You can choose whether to enable the new launch instance experience,\n# the\
+      \ legacy experience, or both. The legacy experience will be removed\n# in a\
+      \ future release, but is available as a temporary backup setting to ensure\n\
+      # compatibility with existing deployments. Further development will not be\n\
+      # done on the legacy experience. Please report any problems with the new\n#\
+      \ experience via the Launchpad tracking system.\n#\n# Toggle LAUNCH_INSTANCE_LEGACY_ENABLED\
+      \ and LAUNCH_INSTANCE_NG_ENABLED to\n# determine the experience to enable. \
+      \ Set them both to true to enable\n# both.\n#LAUNCH_INSTANCE_LEGACY_ENABLED\
+      \ = True\n#LAUNCH_INSTANCE_NG_ENABLED = False\n\n# A dictionary of settings\
+      \ which can be used to provide the default values for\n# properties found in\
+      \ the Launch Instance modal.\n#LAUNCH_INSTANCE_DEFAULTS = {\n#    'config_drive':\
+      \ False,\n#    'enable_scheduler_hints': True\n#}\n\n# The Xen Hypervisor has\
+      \ the ability to set the mount point for volumes\n# attached to instances (other\
+      \ Hypervisors currently do not). Setting\n# can_set_mount_point to True will\
+      \ add the option to set the mount point\n# from the UI.\nOPENSTACK_HYPERVISOR_FEATURES\
+      \ = {\n    'can_set_mount_point': False,\n    'can_set_password': False,\n \
+      \   'requires_keypair': False,\n    'enable_quotas': True\n}\n\n# The OPENSTACK_CINDER_FEATURES\
+      \ settings can be used to enable optional\n# services provided by cinder that\
+      \ is not exposed by its extension API.\nOPENSTACK_CINDER_FEATURES = {\n    'enable_backup':\
+      \ True,\n}\n\n# The OPENSTACK_NEUTRON_NETWORK settings can be used to enable\
+      \ optional\n# services provided by neutron. Options currently available are\
+      \ load\n# balancer service, security groups, quotas, VPN service.\nOPENSTACK_NEUTRON_NETWORK\
+      \ = {\n    'enable_router': True,\n    'enable_quotas': True,\n    'enable_ipv6':\
+      \ True,\n    'enable_distributed_router': False,\n    'enable_ha_router': False,\n\
+      \    'enable_lb': True,\n    'enable_firewall': True,\n    'enable_vpn': True,\n\
+      \    'enable_fip_topology_check': True,\n\n    # Default dns servers you would\
+      \ like to use when a subnet is\n    # created.  This is only a default, users\
+      \ can still choose a different\n    # list of dns servers when creating a new\
+      \ subnet.\n    # The entries below are examples only, and are not appropriate\
+      \ for\n    # real deployments\n    # 'default_dns_nameservers': [\"8.8.8.8\"\
+      , \"8.8.4.4\", \"208.67.222.222\"],\n\n    # The profile_support option is used\
+      \ to detect if an external router can be\n    # configured via the dashboard.\
+      \ When using specific plugins the\n    # profile_support can be turned on if\
+      \ needed.\n    'profile_support': None,\n    #'profile_support': 'cisco',\n\n\
+      \    # Set which provider network types are supported. Only the network types\n\
+      \    # in this list will be available to choose from when creating a network.\n\
+      \    # Network types include local, flat, vlan, gre, vxlan and geneve.\n   \
+      \ # 'supported_provider_types': ['*'],\n\n    # You can configure available\
+      \ segmentation ID range per network type\n    # in your deployment.\n    # 'segmentation_id_range':\
+      \ {\n    #     'vlan': [1024, 2048],\n    #     'vxlan': [4094, 65536],\n  \
+      \  # },\n\n    # You can define additional provider network types here.\n  \
+      \  # 'extra_provider_types': {\n    #     'awesome_type': {\n    #         'display_name':\
+      \ 'Awesome New Type',\n    #         'require_physical_network': False,\n  \
+      \  #         'require_segmentation_id': True,\n    #     }\n    # },\n\n   \
+      \ # Set which VNIC types are supported for port binding. Only the VNIC\n   \
+      \ # types in this list will be available to choose from when creating a\n  \
+      \  # port.\n    # VNIC types include 'normal', 'macvtap' and 'direct'.\n   \
+      \ # Set to empty list or None to disable VNIC type selection.\n    'supported_vnic_types':\
+      \ ['*'],\n}\n\n# The OPENSTACK_HEAT_STACK settings can be used to disable password\n\
+      # field required while launching the stack.\nOPENSTACK_HEAT_STACK = {\n    'enable_user_pass':\
+      \ True,\n}\n\n# The OPENSTACK_IMAGE_BACKEND settings can be used to customize\
+      \ features\n# in the OpenStack Dashboard related to the Image service, such\
+      \ as the list\n# of supported image formats.\n#OPENSTACK_IMAGE_BACKEND = {\n\
+      #    'image_formats': [\n#        ('', _('Select format')),\n#        ('aki',\
+      \ _('AKI - Amazon Kernel Image')),\n#        ('ami', _('AMI - Amazon Machine\
+      \ Image')),\n#        ('ari', _('ARI - Amazon Ramdisk Image')),\n#        ('docker',\
+      \ _('Docker')),\n#        ('iso', _('ISO - Optical Disk Image')),\n#       \
+      \ ('ova', _('OVA - Open Virtual Appliance')),\n#        ('qcow2', _('QCOW2 -\
+      \ QEMU Emulator')),\n#        ('raw', _('Raw')),\n#        ('vdi', _('VDI -\
+      \ Virtual Disk Image')),\n#        ('vhd', _('VHD - Virtual Hard Disk')),\n\
+      #        ('vmdk', _('VMDK - Virtual Machine Disk')),\n#    ],\n#}\n\n# The IMAGE_CUSTOM_PROPERTY_TITLES\
+      \ settings is used to customize the titles for\n# image custom property attributes\
+      \ that appear on image detail pages.\nIMAGE_CUSTOM_PROPERTY_TITLES = {\n   \
+      \ \"architecture\": _(\"Architecture\"),\n    \"kernel_id\": _(\"Kernel ID\"\
+      ),\n    \"ramdisk_id\": _(\"Ramdisk ID\"),\n    \"image_state\": _(\"Euca2ools\
+      \ state\"),\n    \"project_id\": _(\"Project ID\"),\n    \"image_type\": _(\"\
+      Image Type\"),\n}\n\n# The IMAGE_RESERVED_CUSTOM_PROPERTIES setting is used\
+      \ to specify which image\n# custom properties should not be displayed in the\
+      \ Image Custom Properties\n# table.\nIMAGE_RESERVED_CUSTOM_PROPERTIES = []\n\
+      \n# Set to 'legacy' or 'direct' to allow users to upload images to glance via\n\
+      # Horizon server. When enabled, a file form field will appear on the create\n\
+      # image form. If set to 'off', there will be no file form field on the create\n\
+      # image form. See documentation for deployment considerations.\n#HORIZON_IMAGES_UPLOAD_MODE\
+      \ = 'legacy'\n\n# OPENSTACK_ENDPOINT_TYPE specifies the endpoint type to use\
+      \ for the endpoints\n# in the Keystone service catalog. Use this setting when\
+      \ Horizon is running\n# external to the OpenStack environment. The default is\
+      \ 'publicURL'.\nOPENSTACK_ENDPOINT_TYPE = \"internalURL\"\n\n# SECONDARY_ENDPOINT_TYPE\
+      \ specifies the fallback endpoint type to use in the\n# case that OPENSTACK_ENDPOINT_TYPE\
+      \ is not present in the endpoints\n# in the Keystone service catalog. Use this\
+      \ setting when Horizon is running\n# external to the OpenStack environment.\
+      \ The default is None. This\n# value should differ from OPENSTACK_ENDPOINT_TYPE\
+      \ if used.\n#SECONDARY_ENDPOINT_TYPE = None\n\n# The number of objects (Swift\
+      \ containers/objects or images) to display\n# on a single page before providing\
+      \ a paging element (a \"more\" link)\n# to paginate results.\nAPI_RESULT_LIMIT\
+      \ = 1000\nAPI_RESULT_PAGE_SIZE = 20\n\n# The size of chunk in bytes for downloading\
+      \ objects from Swift\nSWIFT_FILE_TRANSFER_CHUNK_SIZE = 512 * 1024\n\n# Specify\
+      \ a maximum number of items to display in a dropdown.\nDROPDOWN_MAX_ITEMS =\
+      \ 30\n\n# The timezone of the server. This should correspond with the timezone\n\
+      # of your entire OpenStack installation, and hopefully be in UTC.\nTIME_ZONE\
+      \ = \"UTC\"\n\n# When launching an instance, the menu of available flavors is\n\
+      # sorted by RAM usage, ascending. If you would like a different sort order,\n\
+      # you can provide another flavor attribute as sorting key. Alternatively, you\n\
+      # can provide a custom callback method to use for sorting. You can also provide\n\
+      # a flag for reverse sort. For more info, see\n# http://docs.python.org/2/library/functions.html#sorted\n\
+      #CREATE_INSTANCE_FLAVOR_SORT = {\n#    'key': 'name',\n#     # or\n#    'key':\
+      \ my_awesome_callback_method,\n#    'reverse': False,\n#}\n\n# Set this to True\
+      \ to display an 'Admin Password' field on the Change Password\n# form to verify\
+      \ that it is indeed the admin logged-in who wants to change\n# the password.\n\
+      #ENFORCE_PASSWORD_CHECK = False\n\n# Modules that provide /auth routes that\
+      \ can be used to handle different types\n# of user authentication. Add auth\
+      \ plugins that require extra route handling to\n# this list.\n#AUTHENTICATION_URLS\
+      \ = [\n#    'openstack_auth.urls',\n#]\n\n# The Horizon Policy Enforcement engine\
+      \ uses these values to load per service\n# policy rule files. The content of\
+      \ these files should match the files the\n# OpenStack services are using to\
+      \ determine role based access control in the\n# target installation.\n\n# Path\
+      \ to directory containing policy.json files\nPOLICY_FILES_PATH = '/etc/openstack-dashboard'\n\
+      \n# Map of local copy of service policy files.\n# Please insure that your identity\
+      \ policy file matches the one being used on\n# your keystone servers. There\
+      \ is an alternate policy file that may be used\n# in the Keystone v3 multi-domain\
+      \ case, policy.v3cloudsample.json.\n# This file is not included in the Horizon\
+      \ repository by default but can be\n# found at\n# http://git.openstack.org/cgit/openstack/keystone/tree/etc/\
+      \ \\\n# policy.v3cloudsample.json\n# Having matching policy files on the Horizon\
+      \ and Keystone servers is essential\n# for normal operation. This holds true\
+      \ for all services and their policy files.\n#POLICY_FILES = {\n#    'identity':\
+      \ 'keystone_policy.json',\n#    'compute': 'nova_policy.json',\n#    'volume':\
+      \ 'cinder_policy.json',\n#    'image': 'glance_policy.json',\n#    'orchestration':\
+      \ 'heat_policy.json',\n#    'network': 'neutron_policy.json',\n#    'telemetry':\
+      \ 'ceilometer_policy.json',\n#}\n\n# TODO: (david-lyle) remove when plugins\
+      \ support adding settings.\n# Note: Only used when trove-dashboard plugin is\
+      \ configured to be used by\n# Horizon.\n# Trove user and database extension\
+      \ support. By default support for\n# creating users and databases on database\
+      \ instances is turned on.\n# To disable these extensions set the permission\
+      \ here to something\n# unusable such as [\"!\"].\n#TROVE_ADD_USER_PERMS = []\n\
+      #TROVE_ADD_DATABASE_PERMS = []\n\n# Change this patch to the appropriate list\
+      \ of tuples containing\n# a key, label and static directory containing two files:\n\
+      # _variables.scss and _styles.scss\n#AVAILABLE_THEMES = [\n#    ('default',\
+      \ 'Default', 'themes/default'),\n#    ('material', 'Material', 'themes/material'),\n\
+      #]\n\nLOGGING = {\n    'version': 1,\n    # When set to True this will disable\
+      \ all logging except\n    # for loggers specified in this configuration dictionary.\
+      \ Note that\n    # if nothing is specified here and disable_existing_loggers\
+      \ is True,\n    # django.db.backends will still log unless it is disabled explicitly.\n\
+      \    'disable_existing_loggers': False,\n    'formatters': {\n        'operation':\
+      \ {\n            # The format of \"%(message)s\" is defined by\n           \
+      \ # OPERATION_LOG_OPTIONS['format']\n            'format': '%(asctime)s %(message)s'\n\
+      \        },\n    },\n    'handlers': {\n        'null': {\n            'level':\
+      \ 'DEBUG',\n            'class': 'logging.NullHandler',\n        },\n      \
+      \  'console': {\n            # Set the level to \"DEBUG\" for verbose output\
+      \ logging.\n            'level': 'INFO',\n            'class': 'logging.StreamHandler',\n\
+      \        },\n        'operation': {\n            'level': 'INFO',\n        \
+      \    'class': 'logging.StreamHandler',\n            'formatter': 'operation',\n\
+      \        },\n    },\n    'loggers': {\n        # Logging from django.db.backends\
+      \ is VERY verbose, send to null\n        # by default.\n        'django.db.backends':\
+      \ {\n            'handlers': ['null'],\n            'propagate': False,\n  \
+      \      },\n        'requests': {\n            'handlers': ['null'],\n      \
+      \      'propagate': False,\n        },\n        'horizon': {\n            'handlers':\
+      \ ['console'],\n            'level': 'DEBUG',\n            'propagate': False,\n\
+      \        },\n        'horizon.operation_log': {\n            'handlers': ['operation'],\n\
+      \            'level': 'INFO',\n            'propagate': False,\n        },\n\
+      \        'openstack_dashboard': {\n            'handlers': ['console'],\n  \
+      \          'level': 'DEBUG',\n            'propagate': False,\n        },\n\
+      \        'novaclient': {\n            'handlers': ['console'],\n           \
+      \ 'level': 'DEBUG',\n            'propagate': False,\n        },\n        'cinderclient':\
+      \ {\n            'handlers': ['console'],\n            'level': 'DEBUG',\n \
+      \           'propagate': False,\n        },\n        'keystoneclient': {\n \
+      \           'handlers': ['console'],\n            'level': 'DEBUG',\n      \
+      \      'propagate': False,\n        },\n        'glanceclient': {\n        \
+      \    'handlers': ['console'],\n            'level': 'DEBUG',\n            'propagate':\
+      \ False,\n        },\n        'neutronclient': {\n            'handlers': ['console'],\n\
+      \            'level': 'DEBUG',\n            'propagate': False,\n        },\n\
+      \        'heatclient': {\n            'handlers': ['console'],\n           \
+      \ 'level': 'DEBUG',\n            'propagate': False,\n        },\n        'ceilometerclient':\
+      \ {\n            'handlers': ['console'],\n            'level': 'DEBUG',\n \
+      \           'propagate': False,\n        },\n        'swiftclient': {\n    \
+      \        'handlers': ['console'],\n            'level': 'DEBUG',\n         \
+      \   'propagate': False,\n        },\n        'openstack_auth': {\n         \
+      \   'handlers': ['console'],\n            'level': 'DEBUG',\n            'propagate':\
+      \ False,\n        },\n        'nose.plugins.manager': {\n            'handlers':\
+      \ ['console'],\n            'level': 'DEBUG',\n            'propagate': False,\n\
+      \        },\n        'django': {\n            'handlers': ['console'],\n   \
+      \         'level': 'DEBUG',\n            'propagate': False,\n        },\n \
+      \       'iso8601': {\n            'handlers': ['null'],\n            'propagate':\
+      \ False,\n        },\n        'scss': {\n            'handlers': ['null'],\n\
+      \            'propagate': False,\n        },\n    },\n}\n\n# 'direction' should\
+      \ not be specified for all_tcp/udp/icmp.\n# It is specified in the form.\nSECURITY_GROUP_RULES\
+      \ = {\n    'all_tcp': {\n        'name': _('All TCP'),\n        'ip_protocol':\
+      \ 'tcp',\n        'from_port': '1',\n        'to_port': '65535',\n    },\n \
+      \   'all_udp': {\n        'name': _('All UDP'),\n        'ip_protocol': 'udp',\n\
+      \        'from_port': '1',\n        'to_port': '65535',\n    },\n    'all_icmp':\
+      \ {\n        'name': _('All ICMP'),\n        'ip_protocol': 'icmp',\n      \
+      \  'from_port': '-1',\n        'to_port': '-1',\n    },\n    'ssh': {\n    \
+      \    'name': 'SSH',\n        'ip_protocol': 'tcp',\n        'from_port': '22',\n\
+      \        'to_port': '22',\n    },\n    'smtp': {\n        'name': 'SMTP',\n\
+      \        'ip_protocol': 'tcp',\n        'from_port': '25',\n        'to_port':\
+      \ '25',\n    },\n    'dns': {\n        'name': 'DNS',\n        'ip_protocol':\
+      \ 'tcp',\n        'from_port': '53',\n        'to_port': '53',\n    },\n   \
+      \ 'http': {\n        'name': 'HTTP',\n        'ip_protocol': 'tcp',\n      \
+      \  'from_port': '80',\n        'to_port': '80',\n    },\n    'pop3': {\n   \
+      \     'name': 'POP3',\n        'ip_protocol': 'tcp',\n        'from_port': '110',\n\
+      \        'to_port': '110',\n    },\n    'imap': {\n        'name': 'IMAP',\n\
+      \        'ip_protocol': 'tcp',\n        'from_port': '143',\n        'to_port':\
+      \ '143',\n    },\n    'ldap': {\n        'name': 'LDAP',\n        'ip_protocol':\
+      \ 'tcp',\n        'from_port': '389',\n        'to_port': '389',\n    },\n \
+      \   'https': {\n        'name': 'HTTPS',\n        'ip_protocol': 'tcp',\n  \
+      \      'from_port': '443',\n        'to_port': '443',\n    },\n    'smtps':\
+      \ {\n        'name': 'SMTPS',\n        'ip_protocol': 'tcp',\n        'from_port':\
+      \ '465',\n        'to_port': '465',\n    },\n    'imaps': {\n        'name':\
+      \ 'IMAPS',\n        'ip_protocol': 'tcp',\n        'from_port': '993',\n   \
+      \     'to_port': '993',\n    },\n    'pop3s': {\n        'name': 'POP3S',\n\
+      \        'ip_protocol': 'tcp',\n        'from_port': '995',\n        'to_port':\
+      \ '995',\n    },\n    'ms_sql': {\n        'name': 'MS SQL',\n        'ip_protocol':\
+      \ 'tcp',\n        'from_port': '1433',\n        'to_port': '1433',\n    },\n\
+      \    'mysql': {\n        'name': 'MYSQL',\n        'ip_protocol': 'tcp',\n \
+      \       'from_port': '3306',\n        'to_port': '3306',\n    },\n    'rdp':\
+      \ {\n        'name': 'RDP',\n        'ip_protocol': 'tcp',\n        'from_port':\
+      \ '3389',\n        'to_port': '3389',\n    },\n}\n\n# Deprecation Notice:\n\
+      #\n# The setting FLAVOR_EXTRA_KEYS has been deprecated.\n# Please load extra\
+      \ spec metadata into the Glance Metadata Definition Catalog.\n#\n# The sample\
+      \ quota definitions can be found in:\n# <glance_source>/etc/metadefs/compute-quota.json\n\
+      #\n# The metadata definition catalog supports CLI and API:\n#  $glance --os-image-api-version\
+      \ 2 help md-namespace-import\n#  $glance-manage db_load_metadefs <directory_with_definition_files>\n\
+      #\n# See Metadata Definitions on: http://docs.openstack.org/developer/glance/\n\
+      \n# TODO: (david-lyle) remove when plugins support settings natively\n# Note:\
+      \ This is only used when the Sahara plugin is configured and enabled\n# for\
+      \ use in Horizon.\n# Indicate to the Sahara data processing service whether\
+      \ or not\n# automatic floating IP allocation is in effect.  If it is not\n#\
+      \ in effect, the user will be prompted to choose a floating IP\n# pool for use\
+      \ in their cluster.  False by default.  You would want\n# to set this to True\
+      \ if you were running Nova Networking with\n# auto_assign_floating_ip = True.\n\
+      #SAHARA_AUTO_IP_ALLOCATION_ENABLED = False\n\n# The hash algorithm to use for\
+      \ authentication tokens. This must\n# match the hash algorithm that the identity\
+      \ server and the\n# auth_token middleware are using. Allowed values are the\n\
+      # algorithms supported by Python's hashlib library.\n#OPENSTACK_TOKEN_HASH_ALGORITHM\
+      \ = 'md5'\n\n# AngularJS requires some settings to be made available to\n# the\
+      \ client side. Some settings are required by in-tree / built-in horizon\n# features.\
+      \ These settings must be added to REST_API_REQUIRED_SETTINGS in the\n# form\
+      \ of ['SETTING_1','SETTING_2'], etc.\n#\n# You may remove settings from this\
+      \ list for security purposes, but do so at\n# the risk of breaking a built-in\
+      \ horizon feature. These settings are required\n# for horizon to function properly.\
+      \ Only remove them if you know what you\n# are doing. These settings may in\
+      \ the future be moved to be defined within\n# the enabled panel configuration.\n\
+      # You should not add settings to this list for out of tree extensions.\n# See:\
+      \ https://wiki.openstack.org/wiki/Horizon/RESTAPI\nREST_API_REQUIRED_SETTINGS\
+      \ = ['OPENSTACK_HYPERVISOR_FEATURES',\n                              'LAUNCH_INSTANCE_DEFAULTS',\n\
+      \                              'OPENSTACK_IMAGE_FORMATS']\n\n# Additional settings\
+      \ can be made available to the client side for\n# extensibility by specifying\
+      \ them in REST_API_ADDITIONAL_SETTINGS\n# !! Please use extreme caution as the\
+      \ settings are transferred via HTTP/S\n# and are not encrypted on the browser.\
+      \ This is an experimental API and\n# may be deprecated in the future without\
+      \ notice.\n#REST_API_ADDITIONAL_SETTINGS = []\n\n# DISALLOW_IFRAME_EMBED can\
+      \ be used to prevent Horizon from being embedded\n# within an iframe. Legacy\
+      \ browsers are still vulnerable to a Cross-Frame\n# Scripting (XFS) vulnerability,\
+      \ so this option allows extra security hardening\n# where iframes are not used\
+      \ in deployment. Default setting is True.\n# For more information see:\n# http://tinyurl.com/anticlickjack\n\
+      #DISALLOW_IFRAME_EMBED = True\n\n# Help URL can be made available for the client.\
+      \ To provide a help URL, edit the\n# following attribute to the URL of your\
+      \ choice.\n#HORIZON_CONFIG[\"help_url\"] = \"http://openstack.mycompany.org\"\
+      \n\n# Settings for OperationLogMiddleware\n# OPERATION_LOG_ENABLED is flag to\
+      \ use the function to log an operation on\n# Horizon.\n# mask_targets is arrangement\
+      \ for appointing a target to mask.\n# method_targets is arrangement of HTTP\
+      \ method to output log.\n# format is the log contents.\n#OPERATION_LOG_ENABLED\
+      \ = False\n#OPERATION_LOG_OPTIONS = {\n#    'mask_fields': ['password'],\n#\
+      \    'target_methods': ['POST'],\n#    'format': (\"[%(domain_name)s] [%(domain_id)s]\
+      \ [%(project_name)s]\"\n#        \" [%(project_id)s] [%(user_name)s] [%(user_id)s]\
+      \ [%(request_scheme)s]\"\n#        \" [%(referer_url)s] [%(request_url)s] [%(message)s]\
+      \ [%(method)s]\"\n#        \" [%(http_status)s] [%(param)s]\"),\n#}\n\n# The\
+      \ default date range in the Overview panel meters - either <today> minus N\n\
+      # days (if the value is integer N), or from the beginning of the current month\n\
+      # until today (if set to None). This setting should be used to limit the amount\n\
+      # of data fetched by default when rendering the Overview panel.\n#OVERVIEW_DAYS_RANGE\
+      \ = 1\n\n# To allow operators to require admin users provide a search criteria\
+      \ first\n# before loading any data into the admin views, set the following attribute\
+      \ to\n# True\n#ADMIN_FILTER_DATA_FIRST=False\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: horizon, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/rabbitmq-server\",\n    \"\
+      config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/rabbitmq-env.conf\"\
+      ,\n            \"dest\": \"/etc/rabbitmq/rabbitmq-env.conf\",\n            \"\
+      owner\": \"rabbitmq\",\n            \"perm\": \"0600\"\n        },\n       \
+      \ {\n            \"source\": \"/var/lib/kolla/config_files/rabbitmq.config\"\
+      ,\n            \"dest\": \"/etc/rabbitmq/rabbitmq.config\",\n            \"\
+      owner\": \"rabbitmq\",\n            \"perm\": \"0600\"\n        },\n       \
+      \ {\n            \"source\": \"/var/lib/kolla/config_files/rabbitmq-clusterer.config\"\
+      ,\n            \"dest\": \"/etc/rabbitmq/rabbitmq-clusterer.config\",\n    \
+      \        \"owner\": \"rabbitmq\",\n            \"perm\": \"0600\"\n        },\n\
+      \        {\n            \"source\": \"/var/lib/kolla/config_files/definitions.json\"\
+      ,\n            \"dest\": \"/etc/rabbitmq/definitions.json\",\n            \"\
+      owner\": \"rabbitmq\",\n            \"perm\": \"0600\"\n        }\n    ],\n\
+      \    \"permissions\": [\n        {\n            \"path\": \"/var/lib/rabbitmq\"\
+      ,\n            \"owner\": \"rabbitmq:rabbitmq\",\n            \"recurse\": true\n\
+      \        },\n        {\n            \"path\": \"/var/log/kolla/rabbitmq\",\n\
+      \            \"owner\": \"rabbitmq:rabbitmq\",\n            \"recurse\": true\n\
+      \        }\n    ]\n}\n", definitions.json: "{\n  \"vhosts\": [\n    {\"name\"\
+      : \"/\"}\n  ],\n  \"users\": [\n    {\"name\": \"openstack\", \"password\":\
+      \ \"xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe\", \"tags\": \"administrator\"\
+      }\n  ],\n  \"permissions\": [\n    {\"user\": \"openstack\", \"vhost\": \"/\"\
+      , \"configure\": \".*\", \"write\": \".*\", \"read\": \".*\"}\n  ],\n  \"policies\"\
+      :[\n    {\"vhost\": \"/\", \"name\": \"ha-all\", \"pattern\": \".*\", \"apply-to\"\
+      : \"all\", \"definition\": {\"ha-mode\":\"all\"}, \"priority\":0}\n  ]\n}\n",
+    rabbitmq-clusterer.config: "[\n  {version, 1},\n  {nodes, [\n      {'rabbit@dev',\
+      \ disc}    ]},\n  {gospel,\n    {node, 'rabbit@dev'}}\n].\n", rabbitmq-env.conf: 'RABBITMQ_NODENAME=rabbit
+
+
+      RABBITMQ_LOG_BASE=/var/log/kolla/rabbitmq
+
+
+      # TODO(sdake, vhosakot)
+
+      # erlang by default binds to wildcard (all interfaces) and can potentially
+
+      # interfere with the neutron external or tenant networks. We should in theory
+
+      # bind epmd to the host''s IPv4 address to address the issue however this also
+
+      # has issues and can crash erlang when it is compiled with IPv6 support.
+
+      # See bugs:
+
+      # https://bugs.launchpad.net/ubuntu/+source/erlang/+bug/1374109
+
+      # https://bugs.launchpad.net/kolla/+bug/1562701
+
+      # https://bugzilla.redhat.com/show_bug.cgi?id=1324922
+
+      #export ERL_EPMD_ADDRESS=0.0.0.0
+
+      export ERL_EPMD_PORT=4369
+
+      ', rabbitmq.config: "[\n  {kernel, [\n    {inet_dist_use_interface, {0,0,0,0}},\n\
+      \    {inet_dist_listen_min, 25672},\n    {inet_dist_listen_max, 25672}\n  ]},\n\
+      \  {rabbit, [\n    {tcp_listeners, [\n      {\"0.0.0.0\", 5672}\n    ]}  ]},\n\
+      \  {rabbitmq_management, [\n    {listener, [\n      {ip, \"0.0.0.0\"},\n   \
+      \   {port, 15672}\n    ]},\n    {load_definitions, \"/etc/rabbitmq/definitions.json\"\
+      }\n  ]}].\n% EOF\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: rabbitmq, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/bin/memcached -vv -l 0.0.0.0 -p\
+      \ 11211 -c 5000\",\n    \"config_files\": []\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: memcached, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"nova-api\",\n    \"config_files\": [\n\
+      \        {\n            \"source\": \"/var/lib/kolla/config_files/nova.conf\"\
+      ,\n            \"dest\": \"/etc/nova/nova.conf\",\n            \"owner\": \"\
+      nova\",\n            \"perm\": \"0600\"\n        },\n        {\n           \
+      \ \"source\": \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\"\
+      : \"/etc/nova/policy.json\",\n            \"owner\": \"nova\",\n           \
+      \ \"perm\": \"0600\",\n            \"optional\": true\n        }\n    ],\n \
+      \   \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/nova\"\
+      ,\n            \"owner\": \"nova:nova\",\n            \"recurse\": true\n  \
+      \      }\n    ]\n}\n", nova.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/nova
+
+      use_forwarded_for = true
+
+      state_path = /var/lib/nova
+
+      osapi_compute_listen = 0.0.0.0
+
+      osapi_compute_listen_port = 8774
+
+      osapi_compute_workers = 1
+
+      metadata_workers = 1
+
+      metadata_listen = 0.0.0.0
+
+      metadata_listen_port = 8775
+
+      use_neutron = True
+
+      firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+      linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+
+      allow_resize_to_same_host = true
+
+      compute_driver = libvirt.LibvirtDriver
+
+      my_ip = 0.0.0.0
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [conductor]
+
+      workers = 1
+
+
+      [vnc]
+
+      novncproxy_host = 0.0.0.0
+
+      novncproxy_port = 6080
+
+      vncserver_listen = 0.0.0.0
+
+      vncserver_proxyclient_address = 0.0.0.0
+
+      novncproxy_base_url = http://kolla_kubernetes_external_vip:6080/vnc_auto.html
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/nova/tmp
+
+
+      [glance]
+
+      api_servers = http://glance-api:9292
+
+      num_retries = 1
+
+      debug = True
+
+
+      [cinder]
+
+      catalog_info = volumev2:cinderv2:internalURL
+
+
+      [neutron]
+
+      url = http://neutron-server:9696
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+      service_metadata_proxy = true
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_name = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+
+      [database]
+
+      connection = mysql+pymysql://nova:kOMHQrmrMzysjSRHwzfOqcEfe4T27QHEb9Ffttw3@mariadb/nova
+
+      max_pool_size = 50
+
+      max_overflow = 1000
+
+      max_retries = -1
+
+
+      [api_database]
+
+      connection = mysql+pymysql://nova_api:2rGVginCT7Kl2K9mQIQ7AJ8US3G6HwBGGcicazOg@mariadb/nova_api
+
+      max_retries = -1
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = True
+
+      memcache_servers = memcached:11211
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [libvirt]
+
+      connection_uri = "qemu+tcp://0.0.0.0/system"
+
+
+      [upgrade_levels]
+
+      compute = auto
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo nova-rootwrap /etc/nova/rootwrap.conf privsep-helper --config-file
+      /etc/nova/nova.conf
+
+
+      [guestfs]
+
+      debug = True
+
+
+      [wsgi]
+
+      api_paste_config = /etc/nova/api-paste.ini
+
+
+      [scheduler]
+
+      max_attempts = 10
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-api, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"nova-conductor\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/nova.conf\"\
+      ,\n            \"dest\": \"/etc/nova/nova.conf\",\n            \"owner\": \"\
+      nova\",\n            \"perm\": \"0600\"\n        },\n        {\n           \
+      \ \"source\": \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\"\
+      : \"/etc/nova/policy.json\",\n            \"owner\": \"nova\",\n           \
+      \ \"perm\": \"0600\",\n            \"optional\": true\n        }\n    ],\n \
+      \   \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/nova\"\
+      ,\n            \"owner\": \"nova:nova\",\n            \"recurse\": true\n  \
+      \      }\n    ]\n}\n", nova.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/nova
+
+      use_forwarded_for = true
+
+      state_path = /var/lib/nova
+
+      osapi_compute_listen = 0.0.0.0
+
+      osapi_compute_listen_port = 8774
+
+      osapi_compute_workers = 1
+
+      metadata_workers = 1
+
+      metadata_listen = 0.0.0.0
+
+      metadata_listen_port = 8775
+
+      use_neutron = True
+
+      firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+      linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+
+      allow_resize_to_same_host = true
+
+      compute_driver = libvirt.LibvirtDriver
+
+      my_ip = 0.0.0.0
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [conductor]
+
+      workers = 1
+
+
+      [vnc]
+
+      novncproxy_host = 0.0.0.0
+
+      novncproxy_port = 6080
+
+      vncserver_listen = 0.0.0.0
+
+      vncserver_proxyclient_address = 0.0.0.0
+
+      novncproxy_base_url = http://kolla_kubernetes_external_vip:6080/vnc_auto.html
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/nova/tmp
+
+
+      [glance]
+
+      api_servers = http://glance-api:9292
+
+      num_retries = 1
+
+      debug = True
+
+
+      [cinder]
+
+      catalog_info = volumev2:cinderv2:internalURL
+
+
+      [neutron]
+
+      url = http://neutron-server:9696
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+      service_metadata_proxy = true
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_name = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+
+      [database]
+
+      connection = mysql+pymysql://nova:kOMHQrmrMzysjSRHwzfOqcEfe4T27QHEb9Ffttw3@mariadb/nova
+
+      max_pool_size = 50
+
+      max_overflow = 1000
+
+      max_retries = -1
+
+
+      [api_database]
+
+      connection = mysql+pymysql://nova_api:2rGVginCT7Kl2K9mQIQ7AJ8US3G6HwBGGcicazOg@mariadb/nova_api
+
+      max_retries = -1
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = True
+
+      memcache_servers = memcached:11211
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [libvirt]
+
+      connection_uri = "qemu+tcp://0.0.0.0/system"
+
+
+      [upgrade_levels]
+
+      compute = auto
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo nova-rootwrap /etc/nova/rootwrap.conf privsep-helper --config-file
+      /etc/nova/nova.conf
+
+
+      [guestfs]
+
+      debug = True
+
+
+      [wsgi]
+
+      api_paste_config = /etc/nova/api-paste.ini
+
+
+      [scheduler]
+
+      max_attempts = 10
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-conductor, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"nova-scheduler\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/nova.conf\"\
+      ,\n            \"dest\": \"/etc/nova/nova.conf\",\n            \"owner\": \"\
+      nova\",\n            \"perm\": \"0600\"\n        },\n        {\n           \
+      \ \"source\": \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\"\
+      : \"/etc/nova/policy.json\",\n            \"owner\": \"nova\",\n           \
+      \ \"perm\": \"0600\",\n            \"optional\": true\n        }\n    ],\n \
+      \   \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/nova\"\
+      ,\n            \"owner\": \"nova:nova\",\n            \"recurse\": true\n  \
+      \      }\n    ]\n}\n", nova.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/nova
+
+      use_forwarded_for = true
+
+      state_path = /var/lib/nova
+
+      osapi_compute_listen = 0.0.0.0
+
+      osapi_compute_listen_port = 8774
+
+      osapi_compute_workers = 1
+
+      metadata_workers = 1
+
+      metadata_listen = 0.0.0.0
+
+      metadata_listen_port = 8775
+
+      use_neutron = True
+
+      firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+      linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+
+      allow_resize_to_same_host = true
+
+      compute_driver = libvirt.LibvirtDriver
+
+      my_ip = 0.0.0.0
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [conductor]
+
+      workers = 1
+
+
+      [vnc]
+
+      novncproxy_host = 0.0.0.0
+
+      novncproxy_port = 6080
+
+      vncserver_listen = 0.0.0.0
+
+      vncserver_proxyclient_address = 0.0.0.0
+
+      novncproxy_base_url = http://kolla_kubernetes_external_vip:6080/vnc_auto.html
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/nova/tmp
+
+
+      [glance]
+
+      api_servers = http://glance-api:9292
+
+      num_retries = 1
+
+      debug = True
+
+
+      [cinder]
+
+      catalog_info = volumev2:cinderv2:internalURL
+
+
+      [neutron]
+
+      url = http://neutron-server:9696
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+      service_metadata_proxy = true
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_name = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+
+      [database]
+
+      connection = mysql+pymysql://nova:kOMHQrmrMzysjSRHwzfOqcEfe4T27QHEb9Ffttw3@mariadb/nova
+
+      max_pool_size = 50
+
+      max_overflow = 1000
+
+      max_retries = -1
+
+
+      [api_database]
+
+      connection = mysql+pymysql://nova_api:2rGVginCT7Kl2K9mQIQ7AJ8US3G6HwBGGcicazOg@mariadb/nova_api
+
+      max_retries = -1
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = True
+
+      memcache_servers = memcached:11211
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [libvirt]
+
+      connection_uri = "qemu+tcp://0.0.0.0/system"
+
+
+      [upgrade_levels]
+
+      compute = auto
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo nova-rootwrap /etc/nova/rootwrap.conf privsep-helper --config-file
+      /etc/nova/nova.conf
+
+
+      [guestfs]
+
+      debug = True
+
+
+      [wsgi]
+
+      api_paste_config = /etc/nova/api-paste.ini
+
+
+      [scheduler]
+
+      max_attempts = 10
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-scheduler, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/haproxy-systemd-wrapper -f\
+      \ /etc/haproxy/haproxy.cfg -p /run/haproxy.pid\",\n    \"config_files\": [{\n\
+      \        \"source\": \"/var/lib/kolla/config_files/haproxy.cfg\",\n        \"\
+      dest\": \"/etc/haproxy/haproxy.cfg\",\n        \"owner\": \"root\",\n      \
+      \  \"perm\": \"0644\"\n    }]\n}\n", haproxy.cfg: "global\n  chroot /var/lib/haproxy\n\
+      \  user haproxy\n  group haproxy\n  daemon\n  log /var/lib/kolla/heka/log local0\n\
+      \  maxconn 4000\n  # commented out for now. Doesn't work on haproxy from kolla\
+      \ 2.x\n  # its unused anyway.\n  #stats socket /var/lib/kolla/haproxy/haproxy.sock\n\
+      \ndefaults\n  log global\n  mode http\n  option redispatch\n  option httplog\n\
+      \  option forwardfor\n  retries 3\n  timeout http-request 10s\n  timeout queue\
+      \ 1m\n  timeout connect 10s\n  timeout client 1m\n  timeout server 1m\n  timeout\
+      \ check 10s\n\nlisten api\n  bind 0.0.0.0:9292\n  server local-api 127.0.0.1:8080\
+      \ check inter 2000 rise 2 fall 5\n"}
+  kind: ConfigMap
+  metadata: {name: glance-api-haproxy, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/haproxy-systemd-wrapper -f\
+      \ /etc/haproxy/haproxy.cfg -p /run/haproxy.pid\",\n    \"config_files\": [{\n\
+      \        \"source\": \"/var/lib/kolla/config_files/haproxy.cfg\",\n        \"\
+      dest\": \"/etc/haproxy/haproxy.cfg\",\n        \"owner\": \"root\",\n      \
+      \  \"perm\": \"0644\"\n    }]\n}\n", haproxy.cfg: "global\n  chroot /var/lib/haproxy\n\
+      \  user haproxy\n  group haproxy\n  daemon\n  log /var/lib/kolla/heka/log local0\n\
+      \  maxconn 4000\n  # commented out for now. Doesn't work on haproxy from kolla\
+      \ 2.x\n  # its unused anyway.\n  #stats socket /var/lib/kolla/haproxy/haproxy.sock\n\
+      \ndefaults\n  log global\n  mode http\n  option redispatch\n  option httplog\n\
+      \  option forwardfor\n  retries 3\n  timeout http-request 10s\n  timeout queue\
+      \ 1m\n  timeout connect 10s\n  timeout client 1m\n  timeout server 1m\n  timeout\
+      \ check 10s\n\nlisten api\n  bind 0.0.0.0:9191\n  server local-api 127.0.0.1:8080\
+      \ check inter 2000 rise 2 fall 5\n"}
+  kind: ConfigMap
+  metadata: {name: glance-registry-haproxy, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"config_files\": [\n        {\n            \"dest\"\
+      : \"/etc/glance/glance-api.conf\", \n            \"source\": \"/var/lib/kolla/config_files/glance-api.conf\"\
+      , \n            \"perm\": \"0600\", \n            \"owner\": \"glance\"\n  \
+      \      }, \n        {\n            \"dest\": \"/etc/glance/policy.json\", \n\
+      \            \"source\": \"/var/lib/kolla/config_files/policy.json\", \n   \
+      \         \"optional\": true, \n            \"perm\": \"0600\", \n         \
+      \   \"owner\": \"glance\"\n        }, \n        {\n            \"dest\": \"\
+      /etc/ceph/ceph.client.glance.keyring\", \n            \"source\": \"/var/lib/kolla/config_files/ceph.client.glance.keyring\"\
+      , \n            \"owner\": \"glance\", \n            \"perm\": \"0700\"\n  \
+      \      }, \n        {\n            \"dest\": \"/etc/ceph/ceph.conf\", \n   \
+      \         \"source\": \"/var/lib/kolla/config_files/ceph.conf\", \n        \
+      \    \"owner\": \"glance\", \n            \"perm\": \"0700\"\n        }\n  \
+      \  ], \n    \"command\": \"glance-api\", \n    \"permissions\": [\n        {\n\
+      \            \"owner\": \"glance:glance\", \n            \"path\": \"/var/lib/glance\"\
+      , \n            \"recurse\": true\n        }, \n        {\n            \"owner\"\
+      : \"glance:glance\", \n            \"path\": \"/var/log/kolla/glance\", \n \
+      \           \"recurse\": true\n        }\n    ]\n}", glance-api.conf: '[DEFAULT]
+
+      debug = True
+
+      log_file = /var/log/kolla/glance/api.log
+
+      use_forwarded_for = true
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9292
+
+      workers = 1
+
+      registry_host = glance-registry
+
+      show_image_direct_url = True
+
+      show_multiple_locations = True
+
+      cinder_catalog_info = volume:cinder:internalURL
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [database]
+
+      connection = mysql+pymysql://glance:QsG3uctpnOv6Wo9caoZD17ugPp4HL8uwql2LUQLM@mariadb/glance
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = glance
+
+      password = ZBOWng97T4Nn7aE2zmVuQBJmka61WiwwhmlvM1ix
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [paste_deploy]
+
+      flavor = keystone
+
+
+      [glance_store]
+
+      default_store = rbd
+
+      stores = rbd,http
+
+      rbd_store_user = glance
+
+      rbd_store_pool = images
+
+      rbd_store_chunk_size = 8
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: glance-api, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"glance-registry\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/glance-registry.conf\"\
+      ,\n            \"dest\": \"/etc/glance/glance-registry.conf\",\n           \
+      \ \"owner\": \"glance\",\n            \"perm\": \"0600\"\n        },\n     \
+      \   {\n            \"source\": \"/var/lib/kolla/config_files/policy.json\",\n\
+      \            \"dest\": \"/etc/glance/policy.json\",\n            \"owner\":\
+      \ \"glance\",\n            \"perm\": \"0600\",\n            \"optional\": true\n\
+      \        }\n    ],\n    \"permissions\": [\n        {\n            \"path\"\
+      : \"/var/log/kolla/glance\",\n            \"owner\": \"glance:glance\",\n  \
+      \          \"recurse\": true\n        }\n    ]\n}\n", glance-registry.conf: '[DEFAULT]
+
+      debug = True
+
+      log_file = /var/log/kolla/glance/registry.log
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9191
+
+      workers = 1
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [database]
+
+      connection = mysql+pymysql://glance:QsG3uctpnOv6Wo9caoZD17ugPp4HL8uwql2LUQLM@mariadb/glance
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = glance
+
+      password = ZBOWng97T4Nn7aE2zmVuQBJmka61WiwwhmlvM1ix
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [paste_deploy]
+
+      flavor = keystone
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: glance-registry, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"neutron-server --config-file /etc/neutron/neutron.conf\
+      \ --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/neutron/neutron_lbaas.conf\
+      \ --config-file /etc/neutron/neutron_vpnaas.conf\",\n    \"config_files\": [\n\
+      \        {\n            \"source\": \"/var/lib/kolla/config_files/neutron.conf\"\
+      ,\n            \"dest\": \"/etc/neutron/neutron.conf\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/neutron_lbaas.conf\",\n \
+      \           \"dest\": \"/etc/neutron/neutron_lbaas.conf\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/neutron_vpnaas.conf\",\n\
+      \            \"dest\": \"/etc/neutron/neutron_vpnaas.conf\",\n            \"\
+      owner\": \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n\
+      \            \"source\": \"/var/lib/kolla/config_files/ml2_conf.ini\",\n   \
+      \         \"dest\": \"/etc/neutron/plugins/ml2/ml2_conf.ini\",\n           \
+      \ \"owner\": \"neutron\",\n            \"perm\": \"0600\"\n        },\n    \
+      \    {\n            \"source\": \"/var/lib/kolla/config_files/policy.json\"\
+      ,\n            \"dest\": \"/etc/neutron/policy.json\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\",\n            \"optional\": true\n\
+      \        }\n    ],\n    \"permissions\": [\n        {\n            \"path\"\
+      : \"/var/log/kolla/neutron\",\n            \"owner\": \"neutron:neutron\",\n\
+      \            \"recurse\": true\n        }\n    ]\n}\n", ml2-conf.ini: "[ml2]\n\
+      type_drivers = flat,vlan,vxlan\ntenant_network_types = vxlan\nmechanism_drivers\
+      \ = openvswitch,l2population\n\n[ml2_type_vlan]\nnetwork_vlan_ranges = \n\n\
+      [ml2_type_flat]\nflat_networks = physnet1\n\n[ml2_type_vxlan]\nvni_ranges =\
+      \ 1:1000\nvxlan_group = 239.1.1.1\n\n[securitygroup]\nfirewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver\n\
+      \n[agent]\ntunnel_types = vxlan\nl2_population = true\narp_responder = true\n\
+      \n[ovs]\nbridge_mappings = physnet1:br-ex\novsdb_connection = tcp:0.0.0.0:6640\n\
+      local_ip = 0.0.0.0\n\n", neutron-lbaas.conf: '', neutron-vpnaas.conf: '', neutron.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/neutron
+
+      use_stderr = False
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9696
+
+      api_paste_config = /usr/share/neutron/api-paste.ini
+
+      endpoint_type = internalURL
+
+      api_workers = 1
+
+      metadata_workers = 1
+
+      metadata_proxy_socket = /var/lib/neutron/kolla/metadata_proxy
+
+      interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+
+      allow_overlapping_ips = true
+
+      core_plugin = ml2
+
+      service_plugins = router
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [nova]
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      region_name = RegionOne
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      endpoint_type = internal
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/neutron/tmp
+
+
+      [agent]
+
+      root_helper = sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+
+
+      [database]
+
+      connection = mysql+pymysql://neutron:NtFLXb0NHijsNFA0FIP7eakwb3KSqmaqQLG8VB5T@mariadb/neutron
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: neutron-server, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"neutron-dhcp-agent --config-file /etc/neutron/neutron.conf\
+      \ --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/neutron/dhcp_agent.ini\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/neutron.conf\"\
+      ,\n            \"dest\": \"/etc/neutron/neutron.conf\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/ml2_conf.ini\",\n       \
+      \     \"dest\": \"/etc/neutron/plugins/ml2/ml2_conf.ini\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/dhcp_agent.ini\",\n     \
+      \       \"dest\": \"/etc/neutron/dhcp_agent.ini\",\n            \"owner\": \"\
+      neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n        \
+      \    \"source\": \"/var/lib/kolla/config_files/dnsmasq.conf\",\n           \
+      \ \"dest\": \"/etc/neutron/dnsmasq.conf\",\n            \"owner\": \"neutron\"\
+      ,\n            \"perm\": \"0600\"\n        },\n        {\n            \"source\"\
+      : \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\": \"/etc/neutron/policy.json\"\
+      ,\n            \"owner\": \"neutron\",\n            \"perm\": \"0600\",\n  \
+      \          \"optional\": true\n        }\n    ],\n    \"permissions\": [\n \
+      \       {\n            \"path\": \"/var/log/kolla/neutron\",\n            \"\
+      owner\": \"neutron:neutron\",\n            \"recurse\": true\n        },\n \
+      \       {\n            \"path\": \"/var/lib/neutron/kolla\",\n            \"\
+      owner\": \"neutron:neutron\",\n            \"recurse\": true\n        }\n  \
+      \  ]\n}\n", dhcp-agent.ini: '[DEFAULT]
+
+      dnsmasq_config_file = /etc/neutron/dnsmasq.conf
+
+      enable_isolated_metadata = true
+
+      force_metadata = true
+
+
+      ', dnsmasq.conf: 'log-facility=/var/log/kolla/neutron/dnsmasq.log
+
+      ', ml2-conf.ini: "[ml2]\ntype_drivers = flat,vlan,vxlan\ntenant_network_types\
+      \ = vxlan\nmechanism_drivers = openvswitch,l2population\n\n[ml2_type_vlan]\n\
+      network_vlan_ranges = \n\n[ml2_type_flat]\nflat_networks = physnet1\n\n[ml2_type_vxlan]\n\
+      vni_ranges = 1:1000\nvxlan_group = 239.1.1.1\n\n[securitygroup]\nfirewall_driver\
+      \ = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver\n\n\
+      [agent]\ntunnel_types = vxlan\nl2_population = true\narp_responder = true\n\n\
+      [ovs]\nbridge_mappings = physnet1:br-ex\novsdb_connection = tcp:0.0.0.0:6640\n\
+      local_ip = 0.0.0.0\n\n", neutron.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/neutron
+
+      use_stderr = False
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9696
+
+      api_paste_config = /usr/share/neutron/api-paste.ini
+
+      endpoint_type = internalURL
+
+      api_workers = 1
+
+      metadata_workers = 1
+
+      metadata_proxy_socket = /var/lib/neutron/kolla/metadata_proxy
+
+      interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+
+      allow_overlapping_ips = true
+
+      core_plugin = ml2
+
+      service_plugins = router
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [nova]
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      region_name = RegionOne
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      endpoint_type = internal
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/neutron/tmp
+
+
+      [agent]
+
+      root_helper = sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+
+
+      [database]
+
+      connection = mysql+pymysql://neutron:NtFLXb0NHijsNFA0FIP7eakwb3KSqmaqQLG8VB5T@mariadb/neutron
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: neutron-dhcp-agent, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"neutron-l3-agent --config-file /etc/neutron/neutron.conf\
+      \ --config-file /etc/neutron/l3_agent.ini --config-file /etc/neutron/fwaas_driver.ini\
+      \ --config-file /etc/neutron/plugins/ml2/ml2_conf.ini\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/neutron.conf\"\
+      ,\n            \"dest\": \"/etc/neutron/neutron.conf\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/ml2_conf.ini\",\n       \
+      \     \"dest\": \"/etc/neutron/plugins/ml2/ml2_conf.ini\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/fwaas_driver.ini\",\n   \
+      \         \"dest\": \"/etc/neutron/fwaas_driver.ini\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/l3_agent.ini\",\n       \
+      \     \"dest\": \"/etc/neutron/l3_agent.ini\",\n            \"owner\": \"neutron\"\
+      ,\n            \"perm\": \"0600\"\n        },\n        {\n            \"source\"\
+      : \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\": \"/etc/neutron/policy.json\"\
+      ,\n            \"owner\": \"neutron\",\n            \"perm\": \"0600\",\n  \
+      \          \"optional\": true\n        }\n    ],\n    \"permissions\": [\n \
+      \       {\n            \"path\": \"/var/log/kolla/neutron\",\n            \"\
+      owner\": \"neutron:neutron\",\n            \"recurse\": true\n        },\n \
+      \       {\n            \"path\": \"/var/lib/neutron/kolla\",\n            \"\
+      owner\": \"neutron:neutron\",\n            \"recurse\": true\n        }\n  \
+      \  ]\n}\n", fwaas-driver.ini: '[fwaas]
+
+
+      ', l3-agent.ini: '[DEFAULT]
+
+      agent_mode = legacy
+
+
+      ', ml2-conf.ini: "[ml2]\ntype_drivers = flat,vlan,vxlan\ntenant_network_types\
+      \ = vxlan\nmechanism_drivers = openvswitch,l2population\n\n[ml2_type_vlan]\n\
+      network_vlan_ranges = \n\n[ml2_type_flat]\nflat_networks = physnet1\n\n[ml2_type_vxlan]\n\
+      vni_ranges = 1:1000\nvxlan_group = 239.1.1.1\n\n[securitygroup]\nfirewall_driver\
+      \ = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver\n\n\
+      [agent]\ntunnel_types = vxlan\nl2_population = true\narp_responder = true\n\n\
+      [ovs]\nbridge_mappings = physnet1:br-ex\novsdb_connection = tcp:0.0.0.0:6640\n\
+      local_ip = 0.0.0.0\n\n", neutron.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/neutron
+
+      use_stderr = False
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9696
+
+      api_paste_config = /usr/share/neutron/api-paste.ini
+
+      endpoint_type = internalURL
+
+      api_workers = 1
+
+      metadata_workers = 1
+
+      metadata_proxy_socket = /var/lib/neutron/kolla/metadata_proxy
+
+      interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+
+      allow_overlapping_ips = true
+
+      core_plugin = ml2
+
+      service_plugins = router
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [nova]
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      region_name = RegionOne
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      endpoint_type = internal
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/neutron/tmp
+
+
+      [agent]
+
+      root_helper = sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+
+
+      [database]
+
+      connection = mysql+pymysql://neutron:NtFLXb0NHijsNFA0FIP7eakwb3KSqmaqQLG8VB5T@mariadb/neutron
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: neutron-l3-agent, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"neutron-metadata-agent --config-file\
+      \ /etc/neutron/neutron.conf --config-file /etc/neutron/metadata_agent.ini\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/neutron.conf\"\
+      ,\n            \"dest\": \"/etc/neutron/neutron.conf\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/ml2_conf.ini\",\n       \
+      \     \"dest\": \"/etc/neutron/plugins/ml2/ml2_conf.ini\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/metadata_agent.ini\",\n \
+      \           \"dest\": \"/etc/neutron/metadata_agent.ini\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/policy.json\",\n        \
+      \    \"dest\": \"/etc/neutron/policy.json\",\n            \"owner\": \"neutron\"\
+      ,\n            \"perm\": \"0600\",\n            \"optional\": true\n       \
+      \ }\n    ],\n    \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/neutron\"\
+      ,\n            \"owner\": \"neutron:neutron\",\n            \"recurse\": true\n\
+      \        },\n        {\n            \"path\": \"/var/lib/neutron/kolla\",\n\
+      \            \"owner\": \"neutron:neutron\",\n            \"recurse\": true\n\
+      \        }\n    ]\n}\n", metadata-agent.ini: '[DEFAULT]
+
+      nova_metadata_ip = nova-metadata
+
+      nova_metadata_port = 8775
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+
+      ', ml2-conf.ini: "[ml2]\ntype_drivers = flat,vlan,vxlan\ntenant_network_types\
+      \ = vxlan\nmechanism_drivers = openvswitch,l2population\n\n[ml2_type_vlan]\n\
+      network_vlan_ranges = \n\n[ml2_type_flat]\nflat_networks = physnet1\n\n[ml2_type_vxlan]\n\
+      vni_ranges = 1:1000\nvxlan_group = 239.1.1.1\n\n[securitygroup]\nfirewall_driver\
+      \ = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver\n\n\
+      [agent]\ntunnel_types = vxlan\nl2_population = true\narp_responder = true\n\n\
+      [ovs]\nbridge_mappings = physnet1:br-ex\novsdb_connection = tcp:0.0.0.0:6640\n\
+      local_ip = 0.0.0.0\n\n", neutron.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/neutron
+
+      use_stderr = False
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9696
+
+      api_paste_config = /usr/share/neutron/api-paste.ini
+
+      endpoint_type = internalURL
+
+      api_workers = 1
+
+      metadata_workers = 1
+
+      metadata_proxy_socket = /var/lib/neutron/kolla/metadata_proxy
+
+      interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+
+      allow_overlapping_ips = true
+
+      core_plugin = ml2
+
+      service_plugins = router
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [nova]
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      region_name = RegionOne
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      endpoint_type = internal
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/neutron/tmp
+
+
+      [agent]
+
+      root_helper = sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+
+
+      [database]
+
+      connection = mysql+pymysql://neutron:NtFLXb0NHijsNFA0FIP7eakwb3KSqmaqQLG8VB5T@mariadb/neutron
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: neutron-metadata-agent, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"neutron-openvswitch-agent --config-file\
+      \ /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/neutron.conf\"\
+      ,\n            \"dest\": \"/etc/neutron/neutron.conf\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/ml2_conf.ini\",\n       \
+      \     \"dest\": \"/etc/neutron/plugins/ml2/ml2_conf.ini\",\n            \"owner\"\
+      : \"neutron\",\n            \"perm\": \"0600\"\n        },\n        {\n    \
+      \        \"source\": \"/var/lib/kolla/config_files/policy.json\",\n        \
+      \    \"dest\": \"/etc/neutron/policy.json\",\n            \"owner\": \"neutron\"\
+      ,\n            \"perm\": \"0600\",\n            \"optional\": true\n       \
+      \ }\n    ],\n    \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/neutron\"\
+      ,\n            \"owner\": \"neutron:neutron\",\n            \"recurse\": true\n\
+      \        }\n    ]\n}\n", ml2-conf.ini: "[ml2]\ntype_drivers = flat,vlan,vxlan\n\
+      tenant_network_types = vxlan\nmechanism_drivers = openvswitch,l2population\n\
+      \n[ml2_type_vlan]\nnetwork_vlan_ranges = \n\n[ml2_type_flat]\nflat_networks\
+      \ = physnet1\n\n[ml2_type_vxlan]\nvni_ranges = 1:1000\nvxlan_group = 239.1.1.1\n\
+      \n[securitygroup]\nfirewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver\n\
+      \n[agent]\ntunnel_types = vxlan\nl2_population = true\narp_responder = true\n\
+      \n[ovs]\nbridge_mappings = physnet1:br-ex\novsdb_connection = tcp:0.0.0.0:6640\n\
+      local_ip = 0.0.0.0\n\n", neutron.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/neutron
+
+      use_stderr = False
+
+      bind_host = 0.0.0.0
+
+      bind_port = 9696
+
+      api_paste_config = /usr/share/neutron/api-paste.ini
+
+      endpoint_type = internalURL
+
+      api_workers = 1
+
+      metadata_workers = 1
+
+      metadata_proxy_socket = /var/lib/neutron/kolla/metadata_proxy
+
+      interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+
+      allow_overlapping_ips = true
+
+      core_plugin = ml2
+
+      service_plugins = router
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [nova]
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      region_name = RegionOne
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      endpoint_type = internal
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/neutron/tmp
+
+
+      [agent]
+
+      root_helper = sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+
+
+      [database]
+
+      connection = mysql+pymysql://neutron:NtFLXb0NHijsNFA0FIP7eakwb3KSqmaqQLG8VB5T@mariadb/neutron
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcache_servers = memcached
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: neutron-openvswitch-agent, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"start-ovsdb-server 0.0.0.0  br-ex eth1\
+      \ \",\n    \"config_files\": []\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: openvswitch-db-server, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock\
+      \ -vconsole:emer -vsyslog:err -vfile:info --mlockall --log-file=/var/log/kolla/openvswitch/ovs-vswitchd.log\"\
+      ,\n    \"config_files\": []\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: openvswitch-vswitchd, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/libvirtd --listen\",\n    \"\
+      config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/libvirtd.conf\"\
+      ,\n            \"dest\": \"/etc/libvirt/libvirtd.conf\",\n            \"owner\"\
+      : \"root\",\n            \"perm\": \"0644\"\n        },\n        {\n       \
+      \     \"source\": \"/var/lib/kolla/config_files/qemu.conf\",\n            \"\
+      dest\": \"/etc/libvirt/qemu.conf\",\n            \"owner\": \"root\",\n    \
+      \        \"perm\": \"0644\"\n        }    ]\n}\n", libvirtd.conf: 'listen_tcp
+      = 1
+
+      auth_tcp = "none"
+
+      ca_file = ""
+
+      log_level = 1
+
+      log_outputs = "1:file:/var/log/kolla/libvirt/libvirtd.log"
+
+      listen_addr = "0.0.0.0"
+
+      ', qemu.conf: 'stdio_handler = "file"
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-libvirt, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"nova-compute\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/nova.conf\"\
+      ,\n            \"dest\": \"/etc/nova/nova.conf\",\n            \"owner\": \"\
+      nova\",\n            \"perm\": \"0600\"\n        },\n        {\n           \
+      \ \"source\": \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\"\
+      : \"/etc/nova/policy.json\",\n            \"owner\": \"nova\",\n           \
+      \ \"perm\": \"0600\",\n            \"optional\": true\n        }    ],\n   \
+      \ \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/nova\"\
+      ,\n            \"owner\": \"nova:nova\",\n            \"recurse\": true\n  \
+      \      },\n        {\n            \"path\": \"/var/lib/nova\",\n           \
+      \ \"owner\": \"nova:nova\",\n            \"recurse\": true\n        }\n    ]\n\
+      }\n", nova.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/nova
+
+      use_forwarded_for = true
+
+      state_path = /var/lib/nova
+
+      osapi_compute_listen = 0.0.0.0
+
+      osapi_compute_listen_port = 8774
+
+      osapi_compute_workers = 1
+
+      metadata_workers = 1
+
+      metadata_listen = 0.0.0.0
+
+      metadata_listen_port = 8775
+
+      use_neutron = True
+
+      firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+      linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+
+      allow_resize_to_same_host = true
+
+      compute_driver = libvirt.LibvirtDriver
+
+      my_ip = 0.0.0.0
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [conductor]
+
+      workers = 1
+
+
+      [vnc]
+
+      novncproxy_host = 0.0.0.0
+
+      novncproxy_port = 6080
+
+      vncserver_listen = 0.0.0.0
+
+      vncserver_proxyclient_address = 0.0.0.0
+
+      novncproxy_base_url = http://kolla_kubernetes_external_vip:6080/vnc_auto.html
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/nova/tmp
+
+
+      [glance]
+
+      api_servers = http://glance-api:9292
+
+      num_retries = 1
+
+      debug = True
+
+
+      [cinder]
+
+      catalog_info = volumev2:cinderv2:internalURL
+
+
+      [neutron]
+
+      url = http://neutron-server:9696
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+      service_metadata_proxy = true
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_name = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+
+      [database]
+
+      connection = mysql+pymysql://nova:kOMHQrmrMzysjSRHwzfOqcEfe4T27QHEb9Ffttw3@mariadb/nova
+
+      max_pool_size = 50
+
+      max_overflow = 1000
+
+      max_retries = -1
+
+
+      [api_database]
+
+      connection = mysql+pymysql://nova_api:2rGVginCT7Kl2K9mQIQ7AJ8US3G6HwBGGcicazOg@mariadb/nova_api
+
+      max_retries = -1
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = True
+
+      memcache_servers = memcached:11211
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [libvirt]
+
+      connection_uri = "qemu+tcp://0.0.0.0/system"
+
+      virt_type = qemu
+
+      rbd_user = nova
+
+      rbd_secret_uuid = 12fa57cf-2801-4d02-a2e3-8cb52837a798
+
+
+      [upgrade_levels]
+
+      compute = auto
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo nova-rootwrap /etc/nova/rootwrap.conf privsep-helper --config-file
+      /etc/nova/nova.conf
+
+
+      [guestfs]
+
+      debug = True
+
+
+      [wsgi]
+
+      api_paste_config = /etc/nova/api-paste.ini
+
+
+      [scheduler]
+
+      max_attempts = 10
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-compute, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"nova-consoleauth\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/nova.conf\"\
+      ,\n            \"dest\": \"/etc/nova/nova.conf\",\n            \"owner\": \"\
+      nova\",\n            \"perm\": \"0600\"\n        },\n        {\n           \
+      \ \"source\": \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\"\
+      : \"/etc/nova/policy.json\",\n            \"owner\": \"nova\",\n           \
+      \ \"perm\": \"0600\",\n            \"optional\": true\n        }\n    ],\n \
+      \   \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/nova\"\
+      ,\n            \"owner\": \"nova:nova\",\n            \"recurse\": true\n  \
+      \      }\n    ]\n}\n", nova.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/nova
+
+      use_forwarded_for = true
+
+      state_path = /var/lib/nova
+
+      osapi_compute_listen = 0.0.0.0
+
+      osapi_compute_listen_port = 8774
+
+      osapi_compute_workers = 1
+
+      metadata_workers = 1
+
+      metadata_listen = 0.0.0.0
+
+      metadata_listen_port = 8775
+
+      use_neutron = True
+
+      firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+      linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+
+      allow_resize_to_same_host = true
+
+      compute_driver = libvirt.LibvirtDriver
+
+      my_ip = 0.0.0.0
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [conductor]
+
+      workers = 1
+
+
+      [vnc]
+
+      novncproxy_host = 0.0.0.0
+
+      novncproxy_port = 6080
+
+      vncserver_listen = 0.0.0.0
+
+      vncserver_proxyclient_address = 0.0.0.0
+
+      novncproxy_base_url = http://kolla_kubernetes_external_vip:6080/vnc_auto.html
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/nova/tmp
+
+
+      [glance]
+
+      api_servers = http://glance-api:9292
+
+      num_retries = 1
+
+      debug = True
+
+
+      [cinder]
+
+      catalog_info = volumev2:cinderv2:internalURL
+
+
+      [neutron]
+
+      url = http://neutron-server:9696
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+      service_metadata_proxy = true
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_name = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+
+      [database]
+
+      connection = mysql+pymysql://nova:kOMHQrmrMzysjSRHwzfOqcEfe4T27QHEb9Ffttw3@mariadb/nova
+
+      max_pool_size = 50
+
+      max_overflow = 1000
+
+      max_retries = -1
+
+
+      [api_database]
+
+      connection = mysql+pymysql://nova_api:2rGVginCT7Kl2K9mQIQ7AJ8US3G6HwBGGcicazOg@mariadb/nova_api
+
+      max_retries = -1
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = True
+
+      memcache_servers = memcached:11211
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [libvirt]
+
+      connection_uri = "qemu+tcp://0.0.0.0/system"
+
+
+      [upgrade_levels]
+
+      compute = auto
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo nova-rootwrap /etc/nova/rootwrap.conf privsep-helper --config-file
+      /etc/nova/nova.conf
+
+
+      [guestfs]
+
+      debug = True
+
+
+      [wsgi]
+
+      api_paste_config = /etc/nova/api-paste.ini
+
+
+      [scheduler]
+
+      max_attempts = 10
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-consoleauth, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"nova-novncproxy\",\n    \"config_files\"\
+      : [\n        {\n            \"source\": \"/var/lib/kolla/config_files/nova.conf\"\
+      ,\n            \"dest\": \"/etc/nova/nova.conf\",\n            \"owner\": \"\
+      nova\",\n            \"perm\": \"0600\"\n        },\n        {\n           \
+      \ \"source\": \"/var/lib/kolla/config_files/policy.json\",\n            \"dest\"\
+      : \"/etc/nova/policy.json\",\n            \"owner\": \"nova\",\n           \
+      \ \"perm\": \"0600\",\n            \"optional\": true\n        }\n    ],\n \
+      \   \"permissions\": [\n        {\n            \"path\": \"/var/log/kolla/nova\"\
+      ,\n            \"owner\": \"nova:nova\",\n            \"recurse\": true\n  \
+      \      }\n    ]\n}\n", nova.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/nova
+
+      use_forwarded_for = true
+
+      state_path = /var/lib/nova
+
+      osapi_compute_listen = 0.0.0.0
+
+      osapi_compute_listen_port = 8774
+
+      osapi_compute_workers = 1
+
+      metadata_workers = 1
+
+      metadata_listen = 0.0.0.0
+
+      metadata_listen_port = 8775
+
+      use_neutron = True
+
+      firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+      linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+
+      allow_resize_to_same_host = true
+
+      compute_driver = libvirt.LibvirtDriver
+
+      my_ip = 0.0.0.0
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [conductor]
+
+      workers = 1
+
+
+      [vnc]
+
+      novncproxy_host = 0.0.0.0
+
+      novncproxy_port = 6080
+
+      vncserver_listen = 0.0.0.0
+
+      vncserver_proxyclient_address = 0.0.0.0
+
+      novncproxy_base_url = http://kolla_kubernetes_external_vip:6080/vnc_auto.html
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/nova/tmp
+
+
+      [glance]
+
+      api_servers = http://glance-api:9292
+
+      num_retries = 1
+
+      debug = True
+
+
+      [cinder]
+
+      catalog_info = volumev2:cinderv2:internalURL
+
+
+      [neutron]
+
+      url = http://neutron-server:9696
+
+      metadata_proxy_shared_secret = fuKoGL2jB5PG8cdt65vXRStdH4pCxqRlQaclWXq7
+
+      service_metadata_proxy = true
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_name = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = neutron
+
+      password = ahQ0v5rW5Iy3i3EPZc1Y2IotHYcETc4tYpgTVkzv
+
+
+      [database]
+
+      connection = mysql+pymysql://nova:kOMHQrmrMzysjSRHwzfOqcEfe4T27QHEb9Ffttw3@mariadb/nova
+
+      max_pool_size = 50
+
+      max_overflow = 1000
+
+      max_retries = -1
+
+
+      [api_database]
+
+      connection = mysql+pymysql://nova_api:2rGVginCT7Kl2K9mQIQ7AJ8US3G6HwBGGcicazOg@mariadb/nova_api
+
+      max_retries = -1
+
+
+      [cache]
+
+      backend = oslo_cache.memcache_pool
+
+      enabled = True
+
+      memcache_servers = memcached:11211
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = nova
+
+      password = y186qIAJ6PG2ZVCmnd4nmmzOWXYOTzgXRECXaH0X
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [libvirt]
+
+      connection_uri = "qemu+tcp://0.0.0.0/system"
+
+
+      [upgrade_levels]
+
+      compute = auto
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo nova-rootwrap /etc/nova/rootwrap.conf privsep-helper --config-file
+      /etc/nova/nova.conf
+
+
+      [guestfs]
+
+      debug = True
+
+
+      [wsgi]
+
+      api_paste_config = /etc/nova/api-paste.ini
+
+
+      [scheduler]
+
+      max_attempts = 10
+
+
+      '}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: nova-novncproxy, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/haproxy-systemd-wrapper -f\
+      \ /etc/haproxy/haproxy.cfg -p /run/haproxy.pid\",\n    \"config_files\": [{\n\
+      \        \"source\": \"/var/lib/kolla/config_files/haproxy.cfg\",\n        \"\
+      dest\": \"/etc/haproxy/haproxy.cfg\",\n        \"owner\": \"root\",\n      \
+      \  \"perm\": \"0644\"\n    }]\n}\n", haproxy.cfg: "global\n  chroot /var/lib/haproxy\n\
+      \  user haproxy\n  group haproxy\n  daemon\n  log /var/lib/kolla/heka/log local0\n\
+      \  maxconn 4000\n  # commented out for now. Doesn't work on haproxy from kolla\
+      \ 2.x\n  # its unused anyway.\n  #stats socket /var/lib/kolla/haproxy/haproxy.sock\n\
+      \ndefaults\n  log global\n  mode http\n  option redispatch\n  option httplog\n\
+      \  option forwardfor\n  retries 3\n  timeout http-request 10s\n  timeout queue\
+      \ 1m\n  timeout connect 10s\n  timeout client 1m\n  timeout server 1m\n  timeout\
+      \ check 10s\n\nlisten api\n  bind 0.0.0.0:6080\n  server local-api 127.0.0.1:8080\
+      \ check inter 2000 rise 2 fall 5\n"}
+  kind: ConfigMap
+  metadata: {name: nova-novncproxy-haproxy, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/haproxy-systemd-wrapper -f\
+      \ /etc/haproxy/haproxy.cfg -p /run/haproxy.pid\",\n    \"config_files\": [{\n\
+      \        \"source\": \"/var/lib/kolla/config_files/haproxy.cfg\",\n        \"\
+      dest\": \"/etc/haproxy/haproxy.cfg\",\n        \"owner\": \"root\",\n      \
+      \  \"perm\": \"0644\"\n    }]\n}\n", haproxy.cfg: "global\n  chroot /var/lib/haproxy\n\
+      \  user haproxy\n  group haproxy\n  daemon\n  log /var/lib/kolla/heka/log local0\n\
+      \  maxconn 4000\n  # commented out for now. Doesn't work on haproxy from kolla\
+      \ 2.x\n  # its unused anyway.\n  #stats socket /var/lib/kolla/haproxy/haproxy.sock\n\
+      \ndefaults\n  log global\n  mode http\n  option redispatch\n  option httplog\n\
+      \  option forwardfor\n  retries 3\n  timeout http-request 10s\n  timeout queue\
+      \ 1m\n  timeout connect 10s\n  timeout client 1m\n  timeout server 1m\n  timeout\
+      \ check 10s\n\nlisten api\n  bind 0.0.0.0:9696\n  server local-api 127.0.0.1:8080\
+      \ check inter 2000 rise 2 fall 5\n"}
+  kind: ConfigMap
+  metadata: {name: neutron-server-haproxy, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/haproxy-systemd-wrapper -f\
+      \ /etc/haproxy/haproxy.cfg -p /run/haproxy.pid\",\n    \"config_files\": [{\n\
+      \        \"source\": \"/var/lib/kolla/config_files/haproxy.cfg\",\n        \"\
+      dest\": \"/etc/haproxy/haproxy.cfg\",\n        \"owner\": \"root\",\n      \
+      \  \"perm\": \"0644\"\n    }]\n}\n", haproxy.cfg: "global\n  chroot /var/lib/haproxy\n\
+      \  user haproxy\n  group haproxy\n  daemon\n  log /var/lib/kolla/heka/log local0\n\
+      \  maxconn 4000\n  # commented out for now. Doesn't work on haproxy from kolla\
+      \ 2.x\n  # its unused anyway.\n  #stats socket /var/lib/kolla/haproxy/haproxy.sock\n\
+      \ndefaults\n  log global\n  mode http\n  option redispatch\n  option httplog\n\
+      \  option forwardfor\n  retries 3\n  timeout http-request 10s\n  timeout queue\
+      \ 1m\n  timeout connect 10s\n  timeout client 1m\n  timeout server 1m\n  timeout\
+      \ check 10s\n\nlisten api\n  bind 0.0.0.0:8774\n  server local-api 127.0.0.1:8080\
+      \ check inter 2000 rise 2 fall 5\n\n\nlisten metadata\n  bind 0.0.0.0:8775\n\
+      \  server local-meta 127.0.0.1:8081 check inter 2000 rise 2 fall 5\n"}
+  kind: ConfigMap
+  metadata: {name: nova-api-haproxy, namespace: kolla}
+- apiVersion: v1
+  data: {cinder.conf: "[DEFAULT]\ndebug = True\nlog_dir = /var/log/kolla/cinder\n\
+      use_forwarded_for = true\nuse_stderr = False\nenable_v1_api = false\nosapi_volume_workers\
+      \ = 1\nvolume_name_template = volume-%s\nglance_api_servers = http://glance-api:9292\n\
+      glance_num_retries = 1\nglance_api_version = 2\nos_region_name = RegionOne\n\
+      enabled_backends = rbd-1\nbackup_driver = cinder.backup.drivers.nfs\nbackup_mount_options\
+      \ = \nbackup_mount_point_base = /var/lib/cinder/backup\nbackup_share = \nbackup_file_size\
+      \ = 327680000\nosapi_volume_listen = 0.0.0.0\nosapi_volume_listen_port = 8776\n\
+      api_paste_config = /etc/cinder/api-paste.ini\nnova_catalog_info = compute:nova:internalURL\n\
+      auth_strategy = keystone\ntransport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672\n\
+      \n[oslo_messaging_notifications]\ndriver = noop\n\n[database]\nconnection =\
+      \ mysql+pymysql://cinder:OvjamhVkduaUs5LdKehGa7iEcFnC6p6SRqEHkfmV@mariadb/cinder\n\
+      max_retries = -1\n\n[keystone_authtoken]\nauth_uri = http://keystone-public:5000/v3\n\
+      auth_url = http://keystone-admin:35357/v3\nauth_type = password\nproject_domain_id\
+      \ = default\nuser_domain_id = default\nproject_name = service\nusername = cinder\n\
+      password = DsC84oXNgUuvAHrFtHdXsBLiBCX8mgzuwzWvavFD\nmemcache_security_strategy\
+      \ = ENCRYPT\nmemcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3\n\
+      memcached_servers = memcached:11211\n\n[oslo_concurrency]\nlock_path = /var/lib/cinder/tmp\n\
+      \n[rbd-1]\nvolume_driver = cinder.volume.drivers.rbd.RBDDriver\nrbd_pool = volumes\n\
+      rbd_ceph_conf = /etc/ceph/ceph.conf\nrbd_flatten_volume_from_snapshot = false\n\
+      rbd_max_clone_depth = 5\nrbd_store_chunk_size = 4\nrados_connect_timeout = -1\n\
+      rbd_user = cinder\nrbd_secret_uuid = 12fa57cf-2801-4d02-a2e3-8cb52837a798\n\
+      report_discard_supported = True\n\n[privsep_entrypoint]\nhelper_command = sudo\
+      \ cinder-rootwrap /etc/cinder/rootwrap.conf privsep-helper --config-file /etc/cinder/cinder.conf\n\
+      \n", config.json: "{\n    \"command\": \"cinder-api --config-file /etc/cinder/cinder.conf\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/cinder.conf\"\
+      ,\n            \"dest\": \"/etc/cinder/cinder.conf\",\n            \"owner\"\
+      : \"cinder\",\n            \"perm\": \"0600\"\n        },\n        {\n     \
+      \       \"source\": \"/var/lib/kolla/config_files/policy.json\",\n         \
+      \   \"dest\": \"/etc/cinder/policy.json\",\n            \"owner\": \"cinder\"\
+      ,\n            \"perm\": \"0600\",\n            \"optional\": true\n       \
+      \ }\n    ],\n    \"permissions\": [\n        {\n            \"path\": \"/var/lib/cinder\"\
+      ,\n            \"owner\": \"cinder:cinder\",\n            \"recurse\": true\n\
+      \        },\n        {\n            \"path\": \"/var/log/kolla/cinder\",\n \
+      \           \"owner\": \"cinder:cinder\",\n            \"recurse\": true\n \
+      \       }\n    ]\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: cinder-api, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/haproxy-systemd-wrapper -f\
+      \ /etc/haproxy/haproxy.cfg -p /run/haproxy.pid\",\n    \"config_files\": [{\n\
+      \        \"source\": \"/var/lib/kolla/config_files/haproxy.cfg\",\n        \"\
+      dest\": \"/etc/haproxy/haproxy.cfg\",\n        \"owner\": \"root\",\n      \
+      \  \"perm\": \"0644\"\n    }]\n}\n", haproxy.cfg: "global\n  chroot /var/lib/haproxy\n\
+      \  user haproxy\n  group haproxy\n  daemon\n  log /var/lib/kolla/heka/log local0\n\
+      \  maxconn 4000\n  # commented out for now. Doesn't work on haproxy from kolla\
+      \ 2.x\n  # its unused anyway.\n  #stats socket /var/lib/kolla/haproxy/haproxy.sock\n\
+      \ndefaults\n  log global\n  mode http\n  option redispatch\n  option httplog\n\
+      \  option forwardfor\n  retries 3\n  timeout http-request 10s\n  timeout queue\
+      \ 1m\n  timeout connect 10s\n  timeout client 1m\n  timeout server 1m\n  timeout\
+      \ check 10s\n\nlisten api\n  bind 0.0.0.0:8776\n  server local-api 127.0.0.1:8080\
+      \ check inter 2000 rise 2 fall 5\n"}
+  kind: ConfigMap
+  metadata: {name: cinder-api-haproxy, namespace: kolla}
+- apiVersion: v1
+  data: {cinder.conf: '[DEFAULT]
+
+      debug = True
+
+      log_dir = /var/log/kolla/cinder
+
+      use_forwarded_for = true
+
+      use_stderr = False
+
+      enable_v1_api = false
+
+      osapi_volume_workers = 1
+
+      volume_name_template = volume-%s
+
+      glance_api_servers = http://glance-api:9292
+
+      glance_num_retries = 1
+
+      glance_api_version = 2
+
+      os_region_name = RegionOne
+
+      enabled_backends = rbd-1
+
+      backup_driver = cinder.backup.drivers.ceph
+
+      backup_ceph_conf = /etc/ceph/ceph.conf
+
+      backup_ceph_user = cinder-backup
+
+      backup_ceph_chunk_size = 134217728
+
+      backup_ceph_pool = backups
+
+      backup_ceph_stripe_unit = 0
+
+      backup_ceph_stripe_count = 0
+
+      restore_discard_excess_bytes = true
+
+      osapi_volume_listen = 0.0.0.0
+
+      osapi_volume_listen_port = 8776
+
+      api_paste_config = /etc/cinder/api-paste.ini
+
+      nova_catalog_info = compute:nova:internalURL
+
+      auth_strategy = keystone
+
+      transport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672
+
+
+      [oslo_messaging_notifications]
+
+      driver = noop
+
+
+      [database]
+
+      connection = mysql+pymysql://cinder:OvjamhVkduaUs5LdKehGa7iEcFnC6p6SRqEHkfmV@mariadb/cinder
+
+      max_retries = -1
+
+
+      [keystone_authtoken]
+
+      auth_uri = http://keystone-public:5000/v3
+
+      auth_url = http://keystone-admin:35357/v3
+
+      auth_type = password
+
+      project_domain_id = default
+
+      user_domain_id = default
+
+      project_name = service
+
+      username = cinder
+
+      password = DsC84oXNgUuvAHrFtHdXsBLiBCX8mgzuwzWvavFD
+
+      memcache_security_strategy = ENCRYPT
+
+      memcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3
+
+      memcached_servers = memcached:11211
+
+
+      [oslo_concurrency]
+
+      lock_path = /var/lib/cinder/tmp
+
+
+      [rbd-1]
+
+      volume_driver = cinder.volume.drivers.rbd.RBDDriver
+
+      rbd_pool = volumes
+
+      rbd_ceph_conf = /etc/ceph/ceph.conf
+
+      rbd_flatten_volume_from_snapshot = false
+
+      rbd_max_clone_depth = 5
+
+      rbd_store_chunk_size = 4
+
+      rados_connect_timeout = -1
+
+      rbd_user = cinder
+
+      rbd_secret_uuid = 12fa57cf-2801-4d02-a2e3-8cb52837a798
+
+      report_discard_supported = True
+
+
+      [privsep_entrypoint]
+
+      helper_command = sudo cinder-rootwrap /etc/cinder/rootwrap.conf privsep-helper
+      --config-file /etc/cinder/cinder.conf
+
+
+      ', config.json: "{\n    \"command\": \"cinder-backup --config-file /etc/cinder/cinder.conf\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/cinder.conf\"\
+      ,\n            \"dest\": \"/etc/cinder/cinder.conf\",\n            \"owner\"\
+      : \"cinder\",\n            \"perm\": \"0600\"\n        },\n        {\n     \
+      \       \"source\": \"/var/lib/kolla/config_files/policy.json\",\n         \
+      \   \"dest\": \"/etc/cinder/policy.json\",\n            \"owner\": \"cinder\"\
+      ,\n            \"perm\": \"0600\",\n            \"optional\": true\n       \
+      \ },\n        {\n            \"source\": \"/var/lib/kolla/config_files/ceph.*\"\
+      ,\n            \"dest\": \"/etc/ceph/\",\n            \"owner\": \"cinder\"\
+      ,\n            \"perm\": \"0700\",\n            \"optional\": false\n      \
+      \  }    ],\n    \"permissions\": [\n        {\n            \"path\": \"/var/lib/cinder\"\
+      ,\n            \"owner\": \"cinder:cinder\",\n            \"recurse\": true\n\
+      \        },\n        {\n            \"path\": \"/var/log/kolla/cinder\",\n \
+      \           \"owner\": \"cinder:cinder\",\n            \"recurse\": true\n \
+      \       }\n    ]\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: cinder-backup, namespace: kolla}
+- apiVersion: v1
+  data: {cinder.conf: "[DEFAULT]\ndebug = True\nlog_dir = /var/log/kolla/cinder\n\
+      use_forwarded_for = true\nuse_stderr = False\nenable_v1_api = false\nosapi_volume_workers\
+      \ = 1\nvolume_name_template = volume-%s\nglance_api_servers = http://glance-api:9292\n\
+      glance_num_retries = 1\nglance_api_version = 2\nos_region_name = RegionOne\n\
+      enabled_backends = rbd-1\nbackup_driver = cinder.backup.drivers.nfs\nbackup_mount_options\
+      \ = \nbackup_mount_point_base = /var/lib/cinder/backup\nbackup_share = \nbackup_file_size\
+      \ = 327680000\nosapi_volume_listen = 0.0.0.0\nosapi_volume_listen_port = 8776\n\
+      api_paste_config = /etc/cinder/api-paste.ini\nnova_catalog_info = compute:nova:internalURL\n\
+      auth_strategy = keystone\ntransport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672\n\
+      \n[oslo_messaging_notifications]\ndriver = noop\n\n[database]\nconnection =\
+      \ mysql+pymysql://cinder:OvjamhVkduaUs5LdKehGa7iEcFnC6p6SRqEHkfmV@mariadb/cinder\n\
+      max_retries = -1\n\n[keystone_authtoken]\nauth_uri = http://keystone-public:5000/v3\n\
+      auth_url = http://keystone-admin:35357/v3\nauth_type = password\nproject_domain_id\
+      \ = default\nuser_domain_id = default\nproject_name = service\nusername = cinder\n\
+      password = DsC84oXNgUuvAHrFtHdXsBLiBCX8mgzuwzWvavFD\nmemcache_security_strategy\
+      \ = ENCRYPT\nmemcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3\n\
+      memcached_servers = memcached:11211\n\n[oslo_concurrency]\nlock_path = /var/lib/cinder/tmp\n\
+      \n[rbd-1]\nvolume_driver = cinder.volume.drivers.rbd.RBDDriver\nrbd_pool = volumes\n\
+      rbd_ceph_conf = /etc/ceph/ceph.conf\nrbd_flatten_volume_from_snapshot = false\n\
+      rbd_max_clone_depth = 5\nrbd_store_chunk_size = 4\nrados_connect_timeout = -1\n\
+      rbd_user = cinder\nrbd_secret_uuid = 12fa57cf-2801-4d02-a2e3-8cb52837a798\n\
+      report_discard_supported = True\n\n[privsep_entrypoint]\nhelper_command = sudo\
+      \ cinder-rootwrap /etc/cinder/rootwrap.conf privsep-helper --config-file /etc/cinder/cinder.conf\n\
+      \n", config.json: "{\n    \"command\": \"cinder-scheduler --config-file /etc/cinder/cinder.conf\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/cinder.conf\"\
+      ,\n            \"dest\": \"/etc/cinder/cinder.conf\",\n            \"owner\"\
+      : \"cinder\",\n            \"perm\": \"0600\"\n        },\n        {\n     \
+      \       \"source\": \"/var/lib/kolla/config_files/policy.json\",\n         \
+      \   \"dest\": \"/etc/cinder/policy.json\",\n            \"owner\": \"cinder\"\
+      ,\n            \"perm\": \"0600\",\n            \"optional\": true\n       \
+      \ }\n    ],\n    \"permissions\": [\n        {\n            \"path\": \"/var/lib/cinder\"\
+      ,\n            \"owner\": \"cinder:cinder\",\n            \"recurse\": true\n\
+      \        },\n        {\n            \"path\": \"/var/log/kolla/cinder\",\n \
+      \           \"owner\": \"cinder:cinder\",\n            \"recurse\": true\n \
+      \       }\n    ]\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: cinder-scheduler, namespace: kolla}
+- apiVersion: v1
+  data: {cinder.conf: "[DEFAULT]\ndebug = True\nlog_dir = /var/log/kolla/cinder\n\
+      use_forwarded_for = true\nuse_stderr = False\nenable_v1_api = false\nosapi_volume_workers\
+      \ = 1\nvolume_name_template = volume-%s\nglance_api_servers = http://glance-api:9292\n\
+      glance_num_retries = 1\nglance_api_version = 2\nos_region_name = RegionOne\n\
+      enabled_backends = rbd-1\nbackup_driver = cinder.backup.drivers.nfs\nbackup_mount_options\
+      \ = \nbackup_mount_point_base = /var/lib/cinder/backup\nbackup_share = \nbackup_file_size\
+      \ = 327680000\nosapi_volume_listen = 0.0.0.0\nosapi_volume_listen_port = 8776\n\
+      api_paste_config = /etc/cinder/api-paste.ini\nnova_catalog_info = compute:nova:internalURL\n\
+      auth_strategy = keystone\ntransport_url = rabbit://openstack:xgBSwACgFxV66A4ogg8XobVUzwNP4VhoX9NrojRe@rabbitmq:5672\n\
+      \n[oslo_messaging_notifications]\ndriver = noop\n\n[database]\nconnection =\
+      \ mysql+pymysql://cinder:OvjamhVkduaUs5LdKehGa7iEcFnC6p6SRqEHkfmV@mariadb/cinder\n\
+      max_retries = -1\n\n[keystone_authtoken]\nauth_uri = http://keystone-public:5000/v3\n\
+      auth_url = http://keystone-admin:35357/v3\nauth_type = password\nproject_domain_id\
+      \ = default\nuser_domain_id = default\nproject_name = service\nusername = cinder\n\
+      password = DsC84oXNgUuvAHrFtHdXsBLiBCX8mgzuwzWvavFD\nmemcache_security_strategy\
+      \ = ENCRYPT\nmemcache_secret_key = 2BOOCEmrZvOCb1NBRz0UVXTeVYwCCQA7y3zxZUA3\n\
+      memcached_servers = memcached:11211\n\n[oslo_concurrency]\nlock_path = /var/lib/cinder/tmp\n\
+      \n[rbd-1]\nvolume_driver = cinder.volume.drivers.rbd.RBDDriver\nrbd_pool = volumes\n\
+      rbd_ceph_conf = /etc/ceph/ceph.conf\nrbd_flatten_volume_from_snapshot = false\n\
+      rbd_max_clone_depth = 5\nrbd_store_chunk_size = 4\nrados_connect_timeout = -1\n\
+      rbd_user = cinder\nrbd_secret_uuid = 12fa57cf-2801-4d02-a2e3-8cb52837a798\n\
+      report_discard_supported = True\n\n[privsep_entrypoint]\nhelper_command = sudo\
+      \ cinder-rootwrap /etc/cinder/rootwrap.conf privsep-helper --config-file /etc/cinder/cinder.conf\n\
+      \n", config.json: "{\n    \"config_files\": [\n        {\n            \"dest\"\
+      : \"/etc/cinder/cinder.conf\", \n            \"source\": \"/var/lib/kolla/config_files/cinder.conf\"\
+      , \n            \"perm\": \"0600\", \n            \"owner\": \"cinder\"\n  \
+      \      }, \n        {\n            \"dest\": \"/etc/ceph/ceph.client.cinder.keyring\"\
+      , \n            \"source\": \"/var/lib/kolla/config_files/ceph.client.cinder.keyring\"\
+      , \n            \"optional\": false, \n            \"owner\": \"cinder\", \n\
+      \            \"perm\": \"0700\"\n        }, \n        {\n            \"dest\"\
+      : \"/etc/ceph/ceph.conf\", \n            \"source\": \"/var/lib/kolla/config_files/ceph.conf\"\
+      , \n            \"optional\": false, \n            \"owner\": \"cinder\", \n\
+      \            \"perm\": \"0700\"\n        }, \n        {\n            \"dest\"\
+      : \"/etc/ceph/ceph.conf\", \n            \"source\": \"/var/lib/kolla/config_files/ceph.conf\"\
+      , \n            \"optional\": false, \n            \"perm\": \"0600\", \n  \
+      \          \"owner\": \"cinder\"\n        }, \n        {\n            \"dest\"\
+      : \"/etc/cinder/nfs_shares\", \n            \"source\": \"/var/lib/kolla/config_files/nfs_shares\"\
+      , \n            \"optional\": true, \n            \"perm\": \"0600\", \n   \
+      \         \"owner\": \"cinder\"\n        }, \n        {\n            \"dest\"\
+      : \"/etc/cinder/policy.json\", \n            \"source\": \"/var/lib/kolla/config_files/policy.json\"\
+      , \n            \"optional\": true, \n            \"perm\": \"0600\", \n   \
+      \         \"owner\": \"cinder\"\n        }\n    ], \n    \"command\": \"cinder-volume\
+      \ --config-file /etc/cinder/cinder.conf\", \n    \"permissions\": [\n      \
+      \  {\n            \"owner\": \"cinder:cinder\", \n            \"path\": \"/var/lib/cinder\"\
+      , \n            \"recurse\": true\n        }, \n        {\n            \"owner\"\
+      : \"cinder:cinder\", \n            \"path\": \"/var/log/kolla/cinder\", \n \
+      \           \"recurse\": true\n        }\n    ]\n}"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: cinder-volume, namespace: kolla}
+- apiVersion: v1
+  data: {config.json: "{\n    \"command\": \"/usr/sbin/keepalived -nld -p /run/keepalived.pid\"\
+      ,\n    \"config_files\": [\n        {\n            \"source\": \"/var/lib/kolla/config_files/keepalived.conf\"\
+      ,\n            \"dest\": \"/etc/keepalived/keepalived.conf\",\n            \"\
+      owner\": \"root\",\n            \"perm\": \"0644\"\n        }\n    ]\n}\n",
+    keepalived.conf: "vrrp_instance kolla_internal_vip_51 {\n    state MASTER\n  \
+      \  nopreempt\n    interface br-ex\n    virtual_router_id 51\n    priority 1\n\
+      \    advert_int 1\n    virtual_ipaddress {\n        172.18.0.1 dev br-ex\n \
+      \   }\n    authentication {\n        auth_type PASS\n        auth_pass 2rjKFi4Y7b5bA0LzjYiWyU4Cqw02gbnXGwTbnXaG\n\
+      \    }\n}\n"}
+  kind: ConfigMap
+  metadata: {name: keepalived, namespace: kolla}
+kind: List
+

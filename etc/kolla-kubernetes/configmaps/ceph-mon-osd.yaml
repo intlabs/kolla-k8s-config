@@ -1,0 +1,101 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  data: {ceph.conf: '[global]
+
+      osd pool default size = 1
+
+      osd pool default min size = 1
+
+      osd crush chooseleaf type = 0
+
+      debug default = 5
+
+
+      log file = /var/log/kolla/ceph/$cluster-$name.log
+
+      log to syslog = true
+
+      err to syslog = true
+
+      fsid = 68e32853-296b-4803-b502-ff31867cf843
+
+      auth cluster required = cephx
+
+      auth service required = cephx
+
+      auth client required = cephx
+
+      setuser match path = /var/lib/ceph/$type/$cluster-$id
+
+
+      [mon]
+
+      mon compact on start = true
+
+
+      ', config.json: "{    \"command\": \"/usr/bin/ceph-mon -d -i @MONID@ --public-addr\
+      \ @MONADDR@:6789\",    \"config_files\": [\n        {\n            \"source\"\
+      : \"/var/lib/kolla/config_files/ceph.conf\",\n            \"dest\": \"/etc/ceph/ceph.conf\"\
+      ,\n            \"owner\": \"ceph\",\n            \"perm\": \"0600\"\n      \
+      \  },\n        {\n            \"source\": \"/var/lib/kolla/config_files/ceph.client.admin.keyring\"\
+      ,\n            \"dest\": \"/etc/ceph/ceph.client.admin.keyring\",\n        \
+      \    \"owner\": \"ceph\",\n            \"perm\": \"0600\",\n            \"optional\"\
+      : true\n        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/ceph.client.mon.keyring\"\
+      ,\n            \"dest\": \"/etc/ceph/ceph.client.mon.keyring\",\n          \
+      \  \"owner\": \"ceph\",\n            \"perm\": \"0600\",\n            \"optional\"\
+      : true\n        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/ceph.client.radosgw.keyring\"\
+      ,\n            \"dest\": \"/etc/ceph/ceph.client.radosgw.keyring\",\n      \
+      \      \"owner\": \"ceph\",\n            \"perm\": \"0600\",\n            \"\
+      optional\": true\n        },\n        {\n            \"source\": \"/var/lib/kolla/config_files/ceph.monmap\"\
+      ,\n            \"dest\": \"/etc/ceph/ceph.monmap\",\n            \"owner\":\
+      \ \"ceph\",\n            \"perm\": \"0600\",\n            \"optional\": true\n\
+      \        }\n    ]\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: ceph-mon, namespace: kolla}
+- apiVersion: v1
+  data: {ceph.conf: '[global]
+
+      osd pool default size = 1
+
+      osd pool default min size = 1
+
+      osd crush chooseleaf type = 0
+
+      debug default = 5
+
+
+      log file = /var/log/kolla/ceph/$cluster-$name.log
+
+      log to syslog = true
+
+      err to syslog = true
+
+      fsid = 68e32853-296b-4803-b502-ff31867cf843
+
+      auth cluster required = cephx
+
+      auth service required = cephx
+
+      auth client required = cephx
+
+      setuser match path = /var/lib/ceph/$type/$cluster-$id
+
+
+      [mon]
+
+      mon compact on start = true
+
+
+      ', config.json: "{    \"command\": \"/usr/bin/ceph-osd -f -d --public-addr @HOSTADDR@\
+      \ --cluster-addr @CLUSTERADDR@\",    \"config_files\": [\n        {\n      \
+      \      \"source\": \"/var/lib/kolla/config_files/ceph.conf\",\n            \"\
+      dest\": \"/etc/ceph/ceph.conf\",\n            \"owner\": \"ceph\",\n       \
+      \     \"perm\": \"0600\"\n        },\n        {\n            \"source\": \"\
+      /var/lib/kolla/config_files/ceph.client.admin.keyring\",\n            \"dest\"\
+      : \"/etc/ceph/ceph.client.admin.keyring\",\n            \"owner\": \"ceph\"\
+      ,\n            \"perm\": \"0600\"\n        }\n    ]\n}\n"}
+  kind: ConfigMap
+  metadata: {creationTimestamp: null, name: ceph-osd, namespace: kolla}
+kind: List
+
