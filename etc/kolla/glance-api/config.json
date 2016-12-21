@@ -1,0 +1,42 @@
+{
+    "config_files": [
+        {
+            "dest": "/etc/glance/glance-api.conf", 
+            "source": "/var/lib/kolla/config_files/glance-api.conf", 
+            "perm": "0600", 
+            "owner": "glance"
+        }, 
+        {
+            "dest": "/etc/glance/policy.json", 
+            "source": "/var/lib/kolla/config_files/policy.json", 
+            "optional": true, 
+            "perm": "0600", 
+            "owner": "glance"
+        }, 
+        {
+            "dest": "/etc/ceph/ceph.client.glance.keyring", 
+            "source": "/var/lib/kolla/config_files/ceph.client.glance.keyring", 
+            "owner": "glance", 
+            "perm": "0700"
+        }, 
+        {
+            "dest": "/etc/ceph/ceph.conf", 
+            "source": "/var/lib/kolla/config_files/ceph.conf", 
+            "owner": "glance", 
+            "perm": "0700"
+        }
+    ], 
+    "command": "glance-api", 
+    "permissions": [
+        {
+            "owner": "glance:glance", 
+            "path": "/var/lib/glance", 
+            "recurse": true
+        }, 
+        {
+            "owner": "glance:glance", 
+            "path": "/var/log/kolla/glance", 
+            "recurse": true
+        }
+    ]
+}

@@ -1,0 +1,4 @@
+{
+    "command": "start-ovsdb-server 0.0.0.0  br-ex eth1 ",
+    "config_files": []
+}

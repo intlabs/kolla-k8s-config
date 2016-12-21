@@ -1,0 +1,15 @@
+node.name: "0.0.0.0"
+network.host: _eth0:ipv4_
+cluster.name: "0.0.0.0"
+node.master: true
+node.data: true
+discovery.zen.ping.unicast.hosts: ["0.0.0.0"]
+
+discovery.zen.minimum_master_nodes: 1
+gateway.expected_nodes: 1
+gateway.recover_after_time: "5m"
+gateway.recover_after_nodes: 1
+path.conf: "/etc/elasticsearch"
+path.data: "/var/lib/elasticsearch/data"
+path.logs: "/var/log/kolla/elasticsearch"
+path.scripts: "/etc/elasticsearch/scripts"
